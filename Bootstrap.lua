@@ -4,7 +4,7 @@ EasyPocket = EasyPocket or {}
 local EP = EasyPocket
 local function L(key) return EP.L and EP.L(key) or key end
 local function size(frame, width, height) frame:SetWidth(width); frame:SetHeight(height) end
-EP.VERSION = "0.5.0-octowow-alpha"
+EP.VERSION = "0.5.1-octowow-alpha"
 local icon, statusWindow
 local errorLog={}
 

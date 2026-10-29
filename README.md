@@ -4,7 +4,7 @@
 
 Group spells into small pockets, place a pocket icon on your action bar, and click it to reveal its contents. Configure pockets in the menu and add spells directly from your spellbook.
 
-**Version:** 0.5.0-octowow-alpha · **Author:** edwinvancleef577
+**Version:** 0.5.1-octowow-alpha · **Author:** edwinvancleef577
 
 English | [Deutsch](README.de.md)
 
@@ -60,7 +60,7 @@ The menu contains pocket settings, not a spell list. **Delete pocket**, beside *
 - Right-click a spell slot to remove its entry. Left-click to cast; the pocket stays open.
 - A full pocket does not grow automatically. Resize it in the menu. Shrinking is rejected if it would hide occupied cells.
 
-EasyPocket uses native spell/macro pickup and supplements it with a mouse-transparent cursor icon. Removing a pocket shortcut from an action bar follows normal WoW behavior and does not delete the pocket definition.
+EasyPocket uses the native spell and macro cursor directly, without drawing an additional icon. Macro icons support both the numeric stock API and filename-based clients; changing a pocket icon updates its menu preview, macro, and recognized action-bar buttons immediately. Removing a pocket shortcut from an action bar follows normal WoW behavior and does not delete the pocket definition.
 
 ## Window settings
 
@@ -79,7 +79,7 @@ Targets **OctoWoW / Vanilla-style API, Interface 11200, Lua 5.0**. No dependency
 - Each pocket placed on an action bar needs a character macro. If the client's macro limit is reached, the pocket remains accessible from the menu; unrelated macros are never automatically deleted.
 - Settings windows close in combat; pocket opening and spell buttons remain available subject to client restrictions.
 
-This is an alpha release. **40 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.5.0 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
+This is an alpha release. **46 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.5.1 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
 
 ## Troubleshooting and development
 

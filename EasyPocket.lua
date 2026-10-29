@@ -272,7 +272,6 @@ function EP.PickupMacro(id)
         return
     end
     PickupMacro(index)
-    EP.ShowCursorVisual(EP.GetPocketIcon(p.id),"macro")
 end
 function EP.NewPocket()
     if not canEdit() then return end
@@ -290,7 +289,9 @@ function EP.DeletePocket(id)
     if not p or not canEdit() then return end
     -- Remove only this pocket's macros, descending to avoid index shifts.
     if DeleteMacro and GetNumMacros then
-        for index=GetNumMacros(),1,-1 do
+        local indices=EP.MacroIndices()
+        for i=table.getn(indices),1,-1 do
+            local index=indices[i]
             local _,_,body=GetMacroInfo(index)
             if body==EP.MacroBody(p.id) or (p.id==db.legacyId and body==EP.MACRO_BODY) then DeleteMacro(index) end
         end
@@ -378,10 +379,13 @@ local function saveName()
 end
 local function makeListIcon(index)
     local b=spellIcon(editor,"EasyPocketListIcon"..index,44)
-    b.selected=b:CreateTexture(nil,"OVERLAY")
-    b.selected:SetAllPoints(b); b.selected:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    b.selected:SetBlendMode("ADD"); b.selected:Hide()
-    b.plus=text(b,"+",12,-7,"GameFontNormalLarge"); b.plus:Hide()
+    b.selected=CreateFrame("Frame",nil,b)
+    b.selected:SetAllPoints(b); b.selected:EnableMouse(false)
+    b.selected:SetBackdrop({edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=2})
+    b.selected:SetBackdropBorderColor(1,.82,0,1); b.selected:Hide()
+    b.plus=b:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")
+    b.plus:SetPoint("CENTER",b,"CENTER",0,0); b.plus:SetJustifyH("CENTER")
+    b.plus:SetText("+"); b.plus:Hide()
     b:RegisterForDrag("LeftButton")
     b:SetScript("OnClick",EP.SafeCallback(function()
         if b.dragAt and GetTime()-b.dragAt<.2 then return end

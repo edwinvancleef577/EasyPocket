@@ -1,6 +1,7 @@
 -- Vanilla cursor and macro integration; all hooks preserve the original call.
 local EP=EasyPocket
 local catalog,dragged,installed={},nil,false
+local syncingMacros={}
 local function trimPath(texture)
     if type(texture)~="string" or texture=="" then return nil end
     texture=string.gsub(texture,"/","\\")
@@ -10,11 +11,26 @@ end
 local function key(texture)
     return string.lower(trimPath(texture) or "")
 end
+-- Some clients expose account and character banks separately (18 slots each).
+function EP.MacroIndices()
+    local result={}
+    if not GetNumMacros then return result end
+    local account,character=GetNumMacros()
+    for i=1,account or 0 do table.insert(result,i) end
+    if character~=nil then
+        local base=MAX_ACCOUNT_MACROS or MAX_MACROS or 18
+        for i=1,character do table.insert(result,base+i) end
+    end
+    return result
+end
+local function loadMacroUI()
+    if MacroFrame_LoadUI then MacroFrame_LoadUI() end
+end
 function EP.FindMacro(id)
     local pocket=EP.GetPocket(id)
     if not pocket then return nil end
     if not GetNumMacros or not GetMacroInfo then return nil end
-    for index=1,GetNumMacros() do
+    for _,index in ipairs(EP.MacroIndices()) do
         local name,texture,body=GetMacroInfo(index)
         if body==EP.MacroBody(pocket.id) or (pocket.id==EP.db.legacyId and body==EP.MACRO_BODY) then
             return index,name,trimPath(texture)
@@ -31,9 +47,18 @@ end
 local function iconIndexFor(texture)
     for _,info in ipairs(catalog) do if key(info.texture)==key(texture) then return info.index end end
 end
+local function macroIconArgument(texture)
+    loadMacroUI()
+    if type(MACRO_ICON_FILENAMES)=="table" then
+        local path=trimPath(texture) or EP.BAG_ICON
+        local _,_,filename=string.find(path,"([^\\]+)$")
+        return string.upper(filename or "INV_MISC_QUESTIONMARK")
+    end
+    return iconIndexFor(texture) or iconIndexFor(EP.BAG_ICON) or 1
+end
 local function blankName(index)
     local occupied={}
-    for i=1,GetNumMacros() do
+    for _,i in ipairs(EP.MacroIndices()) do
         if i~=index then local name=GetMacroInfo(i); if name then occupied[name]=true end end
     end
     local name=" "
@@ -59,7 +84,7 @@ function EP.ShowPocketTooltip(tooltip,id)
     tooltip:AddLine(EP.L("Drag from the spellbook into the pocket."),0.8,0.8,0.8)
     tooltip:Show()
 end
-function EP.SyncMacro(id,force)
+local function syncMacro(id,force)
     local pocket=EP.GetPocket(id)
     if not pocket or (EP.CanEdit and not EP.CanEdit(true)) then return end
     local index,name,texture=EP.FindMacro(pocket.id)
@@ -72,15 +97,60 @@ function EP.SyncMacro(id,force)
             pocket.iconTexture=texture or EP.BAG_ICON
         end
         local desired=EP.GetPocketIcon(pocket.id)
-        local iconIndex=iconIndexFor(desired)
+        local iconArgument=macroIconArgument(desired)
         local _,_,body=GetMacroInfo(index)
-        if EditMacro and (body~=EP.MacroBody(pocket.id) or not string.find(name or "","^%s+$") or (iconIndex and key(texture)~=key(desired))) then
-            EditMacro(index,blankName(index),iconIndex,EP.MacroBody(pocket.id),1)
+        if EditMacro and (body~=EP.MacroBody(pocket.id) or not string.find(name or "","^%s+$") or key(texture)~=key(desired)) then
+            EditMacro(index,blankName(index),iconArgument,EP.MacroBody(pocket.id),1)
         end
         local _,_,actual=EP.FindMacro(pocket.id)
         pocket.lastMacroIconTexture=actual
     end
     if not pocket.iconTexture then pocket.iconTexture=EP.BAG_ICON end
+end
+function EP.SyncMacro(id,force)
+    if syncingMacros[id] then return end
+    syncingMacros[id]=true
+    local ok,err=pcall(syncMacro,id,force)
+    syncingMacros[id]=nil
+    if not ok then error(err) end
+end
+function EP.RefreshActionIcons(id)
+    local seen={}
+    local function refresh(b,slot)
+        if not b or seen[b] then return end
+        seen[b]=true
+        slot=type(b.action)=="number" and b.action or slot
+        if not slot then return end
+        local pocketId=EP.IsPocketAction(slot)
+        if not pocketId or (id and pocketId~=id) then return end
+        local name=b.GetName and b:GetName()
+        local texture=EP.GetPocketIcon(pocketId)
+        for _,field in ipairs({"icon","iconTexture","Icon","IconTexture"}) do
+            local region=b[field]
+            if (type(region)=="table" or type(region)=="userdata") and region.SetTexture then region:SetTexture(texture) end
+        end
+        if name then
+            for _,suffix in ipairs({"Icon","IconTexture"}) do
+                local region=getglobal(name..suffix)
+                if region and region.SetTexture then region:SetTexture(texture) end
+            end
+        end
+    end
+    for _,bar in ipairs({{"ActionButton",0},{"BonusActionButton",0},{"MultiBarBottomLeftButton",60},
+        {"MultiBarBottomRightButton",48},{"MultiBarRightButton",24},{"MultiBarLeftButton",36}}) do
+        for i=1,12 do
+            local b=getglobal(bar[1]..i)
+            local slot=bar[2]+i
+            if b and ActionButton_GetPagedID and (bar[1]=="ActionButton" or bar[1]=="BonusActionButton") then
+                slot=ActionButton_GetPagedID(b)
+            end
+            refresh(b,slot)
+        end
+    end
+    if EnumerateFrames then
+        local f=EnumerateFrames()
+        while f do refresh(f); f=EnumerateFrames(f) end
+    end
 end
 function EP.ChooseIcon(index,id)
     local pocket=EP.GetPocket(id)
@@ -90,6 +160,7 @@ function EP.ChooseIcon(index,id)
     if not texture then return end
     pocket.iconTexture=texture
     EP.SyncMacro(pocket.id,true)
+    EP.RefreshActionIcons(pocket.id)
     if EP.ContentsChanged then EP.ContentsChanged(pocket.id) end
 end
 function EP.EnsureMacro(id)
@@ -98,9 +169,13 @@ function EP.EnsureMacro(id)
     EP.SyncMacro(pocket.id)
     local index=EP.FindMacro(pocket.id)
     if index then return index end
-    if GetNumMacros()>=(MAX_MACROS or 18) then return nil,"full" end
-    local iconIndex=iconIndexFor(EP.GetPocketIcon(pocket.id)) or iconIndexFor(EP.BAG_ICON) or 1
-    CreateMacro(blankName(),iconIndex,EP.MacroBody(pocket.id),1)
+    local account,character=GetNumMacros()
+    local used=character~=nil and character or account
+    local limit=character~=nil and (MAX_CHARACTER_MACROS or 18) or (MAX_MACROS or 18)
+    if used>=limit then return nil,"full" end
+    local icon=macroIconArgument(EP.GetPocketIcon(pocket.id))
+    if character~=nil then CreateMacro(blankName(),icon,EP.MacroBody(pocket.id),1,1)
+    else CreateMacro(blankName(),icon,EP.MacroBody(pocket.id),1) end
     return EP.FindMacro(pocket.id)
 end
 function EP.DraggedSpell()
@@ -108,35 +183,7 @@ function EP.DraggedSpell()
     if CursorHasSpell and not CursorHasSpell() then dragged=nil; return nil end
     return dragged
 end
--- A mouse-transparent icon follows the native payload. Native PickupSpell/PickupMacro
--- still own placement on Blizzard action bars; this visual never consumes input.
-local cursorVisual,cursorTexture,cursorKind
-function EP.ClearCursorVisual()
-    cursorTexture=nil; cursorKind=nil
-    if cursorVisual then cursorVisual:Hide() end
-end
-function EP.ShowCursorVisual(texture,kind)
-    if not texture then return end
-    if not cursorVisual then
-        cursorVisual=CreateFrame("Frame","EasyPocketCursorIcon",UIParent)
-        cursorVisual:SetWidth(32); cursorVisual:SetHeight(32); cursorVisual:EnableMouse(false)
-        cursorVisual:SetFrameStrata("TOOLTIP"); cursorVisual:SetFrameLevel(1000)
-        cursorVisual.icon=cursorVisual:CreateTexture(nil,"OVERLAY"); cursorVisual.icon:SetAllPoints(cursorVisual)
-        cursorVisual:SetScript("OnUpdate",function()
-            local hasSpell=CursorHasSpell and CursorHasSpell()
-            local hasItem=CursorHasItem and CursorHasItem()
-            local hasMacro=CursorHasMacro and CursorHasMacro()
-            if not hasSpell and not hasItem and not hasMacro then EP.ClearCursorVisual(); return end
-            local x,y=GetCursorPosition(); local scale=UIParent:GetEffectiveScale()
-            cursorVisual:ClearAllPoints(); cursorVisual:SetPoint("CENTER",UIParent,"BOTTOMLEFT",x/scale,y/scale)
-        end)
-    end
-    cursorTexture,cursorKind=texture,kind
-    cursorVisual.icon:SetTexture(texture)
-    local x,y=GetCursorPosition(); local scale=UIParent:GetEffectiveScale()
-    cursorVisual:ClearAllPoints(); cursorVisual:SetPoint("CENTER",UIParent,"BOTTOMLEFT",x/scale,y/scale)
-    cursorVisual:Show()
-end
+-- PickupSpell and PickupMacro own the native cursor; never draw a second icon.
 function EP.ReceiveSpell(id,target)
     local pocket=EP.GetPocket(id)
     if not pocket or not EP.CanEdit() then return false end
@@ -146,7 +193,6 @@ function EP.ReceiveSpell(id,target)
     if not ok then EP.Say(EP.L("Pocket is full.")); return false end
     dragged=nil
     if ClearCursor then ClearCursor() end
-    EP.ClearCursorVisual()
     -- Like an action bar: an occupied destination puts its previous spell on the cursor.
     if displaced then
         local slot=EP.GetSpellSlot(displaced)
@@ -187,8 +233,8 @@ local function installCursorHooks()
             end
             local result=previous(slot,book)
             if name and (not CursorHasSpell or CursorHasSpell()) then
-                dragged=name; EP.ShowCursorVisual(GetSpellTexture(slot,BOOKTYPE_SPELL or "spell"),"spell")
-            else EP.ClearCursorVisual() end
+                dragged=name
+            end
             if EP.DragChanged then EP.DragChanged() end
             return result
         end
@@ -196,23 +242,17 @@ local function installCursorHooks()
     -- Cancel stale spell identity when the cursor is cleared or used elsewhere.
     for _,name in ipairs({"ClearCursor","PickupAction","PickupMacro","PickupItem","PickupContainerItem","PickupPetAction","PlaceAction"}) do
         local previous=getglobal(name)
-        local hookName=name
         if type(previous)=="function" then
             _G[name]=function(a,b,c)
-                local pocketId
-                if hookName=="PickupAction" then pocketId=EP.IsPocketAction(a)
-                elseif hookName=="PickupMacro" and EP.db then
-                    for _,p in ipairs(EP.db.pockets) do if EP.FindMacro(p.id)==a then pocketId=p.id; break end end
-                end
-                dragged=nil; EP.ClearCursorVisual()
+                dragged=nil
                 local result=previous(a,b,c)
-                if pocketId then EP.ShowCursorVisual(EP.GetPocketIcon(pocketId),"macro") end
                 return result
             end
         end
     end
 end
 function EP.InitializeActions()
+    loadMacroUI()
     catalog={}
     if GetNumMacroIcons and GetMacroIconInfo then
         for index=1,GetNumMacroIcons() do
@@ -252,4 +292,5 @@ function EP.SyncAllMacros()
     end)
     EP.syncing=nil
     if not ok then error(err) end
+    EP.RefreshActionIcons()
 end

@@ -46,6 +46,12 @@ function EP.Window(name,width,height,title)
     local f=CreateFrame("Frame",name,UIParent)
     size(f,width,height); f:SetClampedToScreen(true); f:EnableMouse(true)
     f.epWindow=true; table.insert(roots,f); EP.Box(f,"CLASSIC")
+    -- Texture packs may replace the dialog background with a translucent image.
+    -- A solid color underneath keeps every window opaque independently of that asset.
+    f.solid=f:CreateTexture(nil,"BACKGROUND")
+    f.solid:SetTexture(.045,.051,.046,1)
+    f.solid:SetPoint("TOPLEFT",f,"TOPLEFT",7,-7)
+    f.solid:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-7,7)
     f:SetScript("OnShow",function() EP.Focus(f) end)
     f:SetScript("OnMouseDown",function() EP.Focus(f) end)
     if title then

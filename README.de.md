@@ -1,6 +1,6 @@
 # EasyPocket
 
-**Version:** 0.5.0-octowow-alpha · **Autor:** edwinvancleef577
+**Version:** 0.5.1-octowow-alpha · **Autor:** edwinvancleef577
 
 [English](README.md) | Deutsch
 
@@ -68,7 +68,7 @@ Zauber direkt aus dem Zauberbuch in eine geöffnete Tasche ziehen. Jeder sichtba
 - **Rechtsklick auf einen Platz:** diesen Eintrag entfernen.
 - **Linksklick auf einen Zauber:** wirken; die Tasche bleibt geöffnet.
 
-Die native Aufnahme über `PickupSpell`, `PickupMacro` bzw. `PickupAction` bleibt für die Aktionsleisten zuständig. EasyPocket ergänzt eine mausdurchlässige Icon-Anzeige am Cursor. Beim Ablegen, Ersetzen oder Leeren des Mauszeigers wird diese entfernt. Ein Drop wird nicht als Zauberklick behandelt.
+Die native Aufnahme über `PickupSpell`, `PickupMacro` bzw. `PickupAction` bleibt für die Aktionsleisten zuständig. EasyPocket verwendet ausschließlich die native Cursor-Anzeige, ohne ein zweites Icon darüberzuzeichnen. Makro-Icons unterstützen sowohl die numerische Vanilla-API als auch Clients mit Icon-Dateinamen. Die Icon-Auswahl aktualisiert Menü, Makro und erkannte Leistenbuttons unmittelbar. Ein Drop wird nicht als Zauberklick behandelt.
 
 Das Herausziehen eines Taschen-Icons aus einer Aktionsleiste folgt der normalen WoW-Leistenbedienung. Es entfernt den Shortcut von diesem Slot, **nicht** die gespeicherte Tasche aus der Verwaltung. Die Verwaltungseinträge bleiben verfügbar, bis „Tasche löschen“ verwendet wird.
 
@@ -88,7 +88,7 @@ Für jede Tasche auf einer Aktionsleiste wird ein charakterbezogenes Makro benö
 
 ## Prüfstand
 
-**40 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
+**46 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
 
 **Nicht im echten OctoWoW-Client ausgeführt.** Die tatsächliche Darstellung sowie das Zusammenspiel mit der installierten DragonForgeUI-/Benilla-Version benötigen den Praxistest.
 

@@ -4,6 +4,10 @@ Frames,Macros,Messages,Actions={}, {}, {}, {}
 Combat,Cursor,LastCast,Shift=false,nil,nil,false
 Clock,EditCalls=100,0
 GetActionInfo=nil
+MACRO_ICON_FILENAMES,MacroFrame_LoadUI,EnumerateFrames=nil,nil,nil
+SplitMacroBanks,FilenameMacroAPI,ReentrantMacroEvents=false,false,false
+NativeCursorTexture=nil
+MAX_ACCOUNT_MACROS,MAX_CHARACTER_MACROS=nil,nil
 SlashCmdList,UISpecialFrames={},{}
 BOOKTYPE_SPELL="spell"
 MAX_MACROS=18
@@ -42,7 +46,7 @@ function methods:SetText(v)
  if self.scripts.OnTextChanged then Trigger(self,"OnTextChanged") end
 end
 function methods:GetText() return self.text or "" end
-function methods:SetTexture(v) self.texture=v end
+function methods:SetTexture(v,g,b,a) self.texture=v; if g then self.color={v,g,b,a} end end
 function methods:SetBackdrop(v) self.backdrop=v end
 function methods:SetBackdropColor(r,g,b,a) self.bg={r,g,b,a} end
 function methods:SetBackdropBorderColor(r,g,b,a) self.border={r,g,b,a} end
@@ -95,11 +99,27 @@ function IsSpellPassive(slot) return Spells[slot].passive end
 function GetSpellCooldown() return 1,2,1 end
 function CooldownFrame_SetTimer(frame,start,duration,enabled) frame.cooldown={start,duration,enabled} end
 function CastSpell(slot,book) LastCast={slot,book} end
-function GetNumMacros() return table.getn(Macros) end
+function GetNumMacros()
+ if not SplitMacroBanks then return table.getn(Macros) end
+ local account,character=0,0
+ for index in pairs(Macros) do
+  if index<=18 then account=account+1 else character=character+1 end
+ end
+ return account,character
+end
 function GetMacroInfo(index)
  if Macros[index] then
   local m=Macros[index]
-  return m[1],type(m[2])=="number" and GetMacroIconInfo(m[2]) or m[2],m[3]
+  local texture=m[2]
+  if type(texture)=="number" then texture=GetMacroIconInfo(texture)
+  elseif FilenameMacroAPI then
+   for i=1,GetNumMacroIcons() do
+    local path=GetMacroIconInfo(i)
+    local _,_,file=string.find(path,"([^\\]+)$")
+    if string.upper(file)==texture then texture=path; break end
+   end
+  end
+  return m[1],texture,m[3]
  end
 end
 function GetNumMacroIcons() return 4 end
@@ -109,25 +129,47 @@ function GetMacroIconInfo(index)
  if index==4 then return "Interface\\Icons\\Spell_Arcane_TeleportStormWind" end
  return "Interface\\Icons\\INV_Misc_QuestionMark"
 end
-function CreateMacro(name,icon,body,localFlag)
- assert(not Combat); assert(type(icon)=="number"); assert(localFlag==1)
- table.insert(Macros,{name,icon,body}) -- legacy API need not return an index
+local function checkMacroIcon(icon)
+ if FilenameMacroAPI then
+  assert(type(icon)=="string" and not string.find(icon,"\\",1,true),"filename macro API requires a bare icon filename")
+ else assert(type(icon)=="number") end
+end
+function CreateMacro(name,icon,body,localFlag,perCharacter)
+ assert(not Combat); checkMacroIcon(icon); assert(localFlag==1)
+ if SplitMacroBanks then
+  assert(perCharacter==1,"new pockets must use character macros")
+  local _,count=GetNumMacros()
+  Macros[19+count]={name,icon,body}
+ else table.insert(Macros,{name,icon,body}) end
 end
 function EditMacro(index,name,icon,body,localFlag)
  assert(not Combat)
+ if icon then checkMacroIcon(icon) end
  local m=assert(Macros[index])
  m[1],m[2],m[3]=name or m[1],icon or m[2],body or m[3]
  EditCalls=EditCalls+1
+ if ReentrantMacroEvents then Event("UPDATE_MACROS") end
 end
-function PickupMacro(index) assert(not Combat); Cursor={"macro",index} end
-function PickupSpell(slot,book) Cursor={"spell",slot,book}; return "original pickup result" end
-function ClearCursor() Cursor=nil end
-function PickupAction(slot) Cursor={"action",slot} end
+function PickupMacro(index)
+ assert(not Combat and Macros[index]); Cursor={"macro",index}
+ local _,texture=GetMacroInfo(index); NativeCursorTexture=texture
+end
+function PickupSpell(slot,book)
+ Cursor={"spell",slot,book}; NativeCursorTexture=GetSpellTexture(slot)
+ return "original pickup result"
+end
+function ClearCursor() Cursor=nil; NativeCursorTexture=nil end
+function PickupAction(slot)
+ Cursor={"action",slot}; NativeCursorTexture=GetActionTexture(slot)
+end
 function PickupItem(item) Cursor={"item",item} end
 function PickupContainerItem(bag,slot) Cursor={"item",bag,slot} end
 function PickupPetAction(slot) Cursor={"pet",slot} end
 function CursorHasMacro() return Cursor and Cursor[1]=="macro" end
-function PlaceAction(slot) Cursor=nil end
+function PlaceAction(slot)
+ if Cursor and Cursor[1]=="macro" then Actions[slot]=Macros[Cursor[2]][1] end
+ Cursor=nil; NativeCursorTexture=nil
+end
 function CursorHasItem() return Cursor and Cursor[1]=="item" end
 function CursorHasSpell() return Cursor and Cursor[1]=="spell" end
 function GetActionText(slot) return Actions[slot] end
@@ -152,5 +194,9 @@ end
 
 function DeleteMacro(index)
  assert(not Combat)
- table.remove(Macros,index)
+ if SplitMacroBanks then
+  local last=index<=18 and 18 or 36
+  for i=index,last-1 do Macros[i]=Macros[i+1] end
+  Macros[last]=nil
+ else table.remove(Macros,index) end
 end

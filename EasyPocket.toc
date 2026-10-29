@@ -3,7 +3,7 @@
 ## Notes: Spell pocket with minimap menu for OctoWoW / Vanilla.
 ## Notes-deDE: Zaubertasche mit Minimap-Menue fuer OctoWoW / Vanilla.
 ## Author: edwinvancleef577
-## Version: 0.5.0-octowow-alpha
+## Version: 0.5.1-octowow-alpha
 ## SavedVariablesPerCharacter: EasyPocketDB, EasyPocketMinimapDB
 
 Locale.lua
