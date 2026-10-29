@@ -1,0 +1,14 @@
+## Interface: 11200
+## Title: EasyPocket
+## Notes: Spell pocket with minimap menu for OctoWoW / Vanilla.
+## Notes-deDE: Zaubertasche mit Minimap-Menue fuer OctoWoW / Vanilla.
+## Author: edwinvancleef577
+## Version: 0.5.0-octowow-alpha
+## SavedVariablesPerCharacter: EasyPocketDB, EasyPocketMinimapDB
+
+Locale.lua
+Widgets.lua
+Bootstrap.lua
+Model.lua
+Actions.lua
+EasyPocket.lua

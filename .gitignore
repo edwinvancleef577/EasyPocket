@@ -1,0 +1,21 @@
+# Local tools and generated artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.luac
+luac.out
+*.zip
+*.log
+*.bak
+.idea/
+.vscode/
+
+# Never commit game/account settings or credentials
+WTF/
+SavedVariables/
+.env
+.env.*
+*.pem
+*.key
