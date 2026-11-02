@@ -7,6 +7,12 @@ GetActionInfo=nil
 MACRO_ICON_FILENAMES,MacroFrame_LoadUI,EnumerateFrames=nil,nil,nil
 SplitMacroBanks,FilenameMacroAPI,ReentrantMacroEvents=false,false,false
 NativeCursorTexture=nil
+BagItems,Equipped,ItemDB={},{},{}
+ItemDB[6256]={name="Fishing Pole",icon="pole-icon",equip="INVTYPE_2HWEAPON",slot=16}
+ItemDB[7005]={name="Skinning Knife",icon="knife-icon",equip="INVTYPE_WEAPON",slot=16}
+ItemDB[6948]={name="Hearthstone",icon="stone-icon",equip=""}
+ItemPickupLocked,EquipFailure,EquipCalls=false,false,0
+GetCursorInfo=nil
 MAX_ACCOUNT_MACROS,MAX_CHARACTER_MACROS=nil,nil
 SlashCmdList,UISpecialFrames={},{}
 BOOKTYPE_SPELL="spell"
@@ -56,6 +62,16 @@ function methods:SetNormalTexture(v)
 end
 function methods:GetNormalTexture() return self.normal end
 function methods:SetPushedTexture(v) self.pushed=v end
+function methods:SetHighlightTexture(v)
+ self.highlight=v
+ if not self.highlightRegion then self.highlightRegion=CreateFrame("Texture",nil,self) end
+ self.highlightRegion:SetTexture(v)
+end
+function methods:GetHighlightTexture() return self.highlightRegion end
+function methods:GetTexture() return self.texture end
+function methods:SetVertexColor(r,g,b,a) self.vertex={r,g,b,a} end
+function methods:SetBagItem(bag,slot) self.tooltipItem=GetContainerItemLink(bag,slot) end
+function methods:SetInventoryItem(unit,slot) self.tooltipItem=GetInventoryItemLink(unit,slot) end
 function methods:SetAction(slot) self.action=slot; self:SetText("Original action "..slot); return 1 end
 function methods:CreateTexture() return CreateFrame("Texture",nil,self) end
 function methods:CreateFontString() return CreateFrame("FontString",nil,self) end
@@ -68,10 +84,10 @@ function methods:IsVisible() return self.shown and (not self.parent or self.pare
 function methods:StartMoving() self.moving=true end
 function methods:StopMovingOrSizing() self.moving=nil end
 function methods:AddMessage(v) table.insert(Messages,v) end
-local noops={"SetClampedToScreen","EnableMouse","SetAllPoints","SetTexCoord","SetHighlightTexture","SetJustifyH",
+local noops={"SetClampedToScreen","EnableMouse","SetAllPoints","SetTexCoord","SetJustifyH",
  "RegisterForClicks","RegisterForDrag","SetMovable",
  "SetAutoFocus","SetMaxLetters","ClearFocus","SetOwner","SetSpell","AddLine",
- "SetMultiLine","SetFontObject","SetScrollChild","EnableMouseWheel","SetVertexColor","SetBlendMode","SetTextInsets"}
+ "SetMultiLine","SetFontObject","SetScrollChild","EnableMouseWheel","SetBlendMode","SetTextInsets"}
 for _,key in ipairs(noops) do methods[key]=function() end end
 function CreateFrame(kind,name,parent,template)
  local frame=setmetatable({kind=kind,name=name,parent=parent,template=template,shown=true,scripts={},events={}},{__index=methods})
@@ -158,12 +174,58 @@ function PickupSpell(slot,book)
  Cursor={"spell",slot,book}; NativeCursorTexture=GetSpellTexture(slot)
  return "original pickup result"
 end
-function ClearCursor() Cursor=nil; NativeCursorTexture=nil end
+function ClearCursor()
+ if Cursor and Cursor[1]=="item" and Cursor.origin then
+  local o=Cursor.origin
+  if o.kind=="bag" then BagItems[o.bag][o.slot]=Cursor[2]
+  else Equipped[o.slot]=Cursor[2] end
+ end
+ Cursor=nil; NativeCursorTexture=nil
+end
 function PickupAction(slot)
  Cursor={"action",slot}; NativeCursorTexture=GetActionTexture(slot)
 end
 function PickupItem(item) Cursor={"item",item} end
-function PickupContainerItem(bag,slot) Cursor={"item",bag,slot} end
+local function itemLink(id)
+ if id then return "|Hitem:"..id..":0:0:0|h["..ItemDB[id].name.."]|h" end
+end
+function GetItemInfo(value)
+ local id=type(value)=="number" and value
+ if type(value)=="string" then
+  local _,_,parsed=string.find(value,"item:(%d+)"); id=tonumber(parsed)
+ end
+ local data=ItemDB[id]
+ if data then return data.name,itemLink(id),1,1,"Weapon","Fishing",1,data.equip,data.icon end
+end
+function GetContainerNumSlots(bag) return 4 end
+function GetContainerItemLink(bag,slot) return itemLink(BagItems[bag] and BagItems[bag][slot]) end
+function GetInventoryItemLink(unit,slot) return itemLink(Equipped[slot]) end
+function PickupContainerItem(bag,slot)
+ if ItemPickupLocked then return end
+ local id=BagItems[bag] and BagItems[bag][slot]
+ if not id then return end
+ assert(not Cursor,"test expects empty native cursor before item pickup")
+ BagItems[bag][slot]=nil
+ Cursor={"item",id}; Cursor.origin={kind="bag",bag=bag,slot=slot}
+ NativeCursorTexture=ItemDB[id].icon
+end
+function PickupInventoryItem(slot)
+ if ItemPickupLocked or not Equipped[slot] then return end
+ assert(not Cursor)
+ local id=Equipped[slot]; Equipped[slot]=nil
+ Cursor={"item",id}; Cursor.origin={kind="equipped",slot=slot}
+ NativeCursorTexture=ItemDB[id].icon
+end
+function AutoEquipCursorItem()
+ EquipCalls=EquipCalls+1
+ if EquipFailure then return end
+ assert(Cursor and Cursor[1]=="item" and Cursor.origin.kind=="bag")
+ local id,o=Cursor[2],Cursor.origin
+ local slot=ItemDB[id].slot
+ local old=Equipped[slot]; Equipped[slot]=id
+ BagItems[o.bag][o.slot]=old
+ Cursor=nil; NativeCursorTexture=nil
+end
 function PickupPetAction(slot) Cursor={"pet",slot} end
 function CursorHasMacro() return Cursor and Cursor[1]=="macro" end
 function PlaceAction(slot)

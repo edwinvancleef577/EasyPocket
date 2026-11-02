@@ -19,6 +19,14 @@ local function oldGrid(count)
     while count>=x*y and x*y<25 do if x==y then x=x+1 else y=y+1 end end
     return x,y
 end
+function EP.NormalizeEntry(value)
+    if type(value)=="string" and value~="" then return value end
+    if type(value)~="table" or value.kind~="item" then return nil end
+    local id=tonumber(value.itemId)
+    if not id or id~=id or id<1 or id>2147483647 or id~=math.floor(id) then return nil end
+    return {kind="item",itemId=id,name=type(value.name)=="string" and value.name or nil,
+        icon=type(value.icon)=="string" and value.icon or nil}
+end
 local function normalizePocket(p,old)
     if type(p.name)~="string" or p.name=="" then p.name=EP.L("My spells") end
     if type(p.iconTexture)~="string" or p.iconTexture=="" then p.iconTexture=nil end
@@ -41,8 +49,8 @@ local function normalizePocket(p,old)
     else
         p.width,p.height=dimension(p.width),dimension(p.height)
         for i=1,25 do
-            local v=spells[i]
-            if type(v)=="string" and v~="" then
+            local v=EP.NormalizeEntry(spells[i])
+            if v then
                 result[i]=v
                 -- Recover malformed dimensions without dropping saved cells.
                 p.width=math.max(p.width,math.mod(i-1,5)+1)
@@ -55,7 +63,7 @@ local function normalizePocket(p,old)
 end
 function EP.Normalize(saved)
     local db=type(saved)=="table" and saved or {}
-    local old=db.version~=5
+    local old=db.version~=5 and db.version~=6
     if type(db.pockets)~="table" then db={pockets={db},nextId=2,legacyId=1}; db.pockets[1].id=1; old=true end
     local nextId=tonumber(db.nextId) or 1
     if nextId~=nextId or nextId<1 or nextId>1000000 then nextId=1 end
@@ -73,7 +81,7 @@ function EP.Normalize(saved)
             table.insert(pockets,normalizePocket(p,old))
         end
     end
-    db.pockets=pockets; db.nextId=nextId; db.version=5
+    db.pockets=pockets; db.nextId=nextId; db.version=6
     db.language=db.language or "auto"
     return db
 end
@@ -91,7 +99,8 @@ function EP.CountSpells(p)
     local count=0; for i=1,25 do if p.spells[i] then count=count+1 end end; return count
 end
 function EP.PutSpell(p,name,target)
-    if type(name)~="string" or name=="" then return false,"invalid" end
+    name=EP.NormalizeEntry(name)
+    if not name then return false,"invalid" end
     if not target then
         for row=1,p.height do
             for column=1,p.width do

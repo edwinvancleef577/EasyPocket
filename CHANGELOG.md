@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0-octowow-alpha
+
+- Remove the extra icon hover overlay in the menu and on recognized pocket action-bar buttons; restore the bar’s original highlight when a slot is reused.
+- Keep pocket tooltips working when a client reports a macro name instead of its numeric action ID.
+- Add equipment shortcuts by dragging carried or equipped items directly into a pocket. Click to equip outside combat; already equipped items remain equipped.
+- Resolve equipment by item ID after inventory rearrangement and show missing equipment as dimmed shortcuts.
+- Support mixed spell/equipment placement and swaps without storing or deleting the physical item. Consumables, bags, and quivers are excluded.
+- Preserve existing spell layouts and item shortcuts in saved-data version 6.
+- Include item messages in all eight menu languages and pass 60 mocked Vanilla behavior tests under Lua 5.0.3. In-client validation remains outstanding.
+
 ## 0.5.1-octowow-alpha
 
 - Center the new-pocket plus inside its slot.

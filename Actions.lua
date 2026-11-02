@@ -73,7 +73,7 @@ function EP.IsPocketAction(slot)
             local kind,actionId
             if GetActionInfo then kind,actionId=GetActionInfo(slot) end
             if (kind=="macro" and actionId==index) or
-                (not kind and GetActionText and GetActionText(slot)==name) then return pocket.id end
+                ((not kind or kind=="macro") and GetActionText and GetActionText(slot)==name) then return pocket.id end
         end
     end
 end
@@ -81,7 +81,7 @@ function EP.ShowPocketTooltip(tooltip,id)
     local pocket=EP.GetPocket(id)
     tooltip:SetText((pocket and pocket.name) or "EasyPocket",1,0.82,0)
     tooltip:AddLine(EP.L("Click: open / close pocket"),1,1,1)
-    tooltip:AddLine(EP.L("Drag from the spellbook into the pocket."),0.8,0.8,0.8)
+    tooltip:AddLine(EP.L("Drag spells or equipment into the pocket."),0.8,0.8,0.8)
     tooltip:Show()
 end
 local function syncMacro(id,force)
@@ -122,6 +122,20 @@ function EP.RefreshActionIcons(id)
         slot=type(b.action)=="number" and b.action or slot
         if not slot then return end
         local pocketId=EP.IsPocketAction(slot)
+        -- Suppress the extra hover square only while this button contains a pocket.
+        -- Restore the bar's own texture when the slot is reused for another action.
+        if b.GetHighlightTexture and b.SetHighlightTexture then
+            if pocketId then
+                if not b.epPocketHighlight then
+                    local region=b:GetHighlightTexture()
+                    b.epPocketHighlight={texture=region and region:GetTexture()}
+                end
+                b:SetHighlightTexture("")
+            elseif b.epPocketHighlight then
+                b:SetHighlightTexture(b.epPocketHighlight.texture or "")
+                b.epPocketHighlight=nil
+            end
+        end
         if not pocketId or (id and pocketId~=id) then return end
         local name=b.GetName and b:GetName()
         local texture=EP.GetPocketIcon(pocketId)
@@ -178,31 +192,45 @@ function EP.EnsureMacro(id)
     else CreateMacro(blankName(),icon,EP.MacroBody(pocket.id),1) end
     return EP.FindMacro(pocket.id)
 end
-function EP.DraggedSpell()
-    if not dragged then return nil end
+function EP.DraggedEntry()
+    if CursorHasItem and CursorHasItem() then
+        if type(dragged)=="table" then return dragged end
+        if GetCursorInfo then
+            local kind,id=GetCursorInfo()
+            if kind=="item" then return EP.ItemData(id) end
+        end
+        return nil
+    end
+    if type(dragged)~="string" then dragged=nil; return nil end
     if CursorHasSpell and not CursorHasSpell() then dragged=nil; return nil end
     return dragged
+end
+function EP.DraggedSpell()
+    local entry=EP.DraggedEntry()
+    return type(entry)=="string" and entry or nil
 end
 -- PickupSpell and PickupMacro own the native cursor; never draw a second icon.
 function EP.ReceiveSpell(id,target)
     local pocket=EP.GetPocket(id)
     if not pocket or not EP.CanEdit() then return false end
-    local name=EP.DraggedSpell()
-    if not name then return false end
+    local name=EP.DraggedEntry()
+    if not name then
+        if CursorHasItem and CursorHasItem() then EP.Say(EP.L("Only equipment can be added.")) end
+        return false
+    end
+    if type(name)=="table" and not ClearCursor then return false end
     local ok,displaced=EP.PutSpell(pocket,name,target)
     if not ok then EP.Say(EP.L("Pocket is full.")); return false end
     dragged=nil
     if ClearCursor then ClearCursor() end
     -- Like an action bar: an occupied destination puts its previous spell on the cursor.
     if displaced then
-        local slot=EP.GetSpellSlot(displaced)
-        if slot and PickupSpell then PickupSpell(slot,BOOKTYPE_SPELL or "spell")
-        else
-            -- Unknown spells cannot be picked up by the native client. Undo the drop.
+        if not EP.PickupEntry(displaced) then
+            -- Keep the destination intact if its old shortcut cannot be picked up.
             pocket.spells[target]=displaced
-            local incoming=EP.GetSpellSlot(name)
-            if incoming and PickupSpell then PickupSpell(incoming,BOOKTYPE_SPELL or "spell") end
-            EP.Say(EP.L("Spell not in spellbook.")); return false
+            EP.PickupEntry(name)
+            EP.Say(EP.L(type(displaced)=="table" and "Item not carried." or "Spell not in spellbook."))
+            return false
         end
     end
     if EP.ContentsChanged then EP.ContentsChanged(pocket.id) end
@@ -212,10 +240,10 @@ function EP.StartSpellDrag(id,index)
     local p=EP.GetPocket(id)
     if not p or not EP.CanEdit() or not p.spells[index] then return false end
     if (CursorHasItem and CursorHasItem()) or (CursorHasSpell and CursorHasSpell()) then return false end
-    local slot=EP.GetSpellSlot(p.spells[index])
-    if not slot or not PickupSpell then EP.Say(EP.L("Spell not in spellbook.")); return false end
-    PickupSpell(slot,BOOKTYPE_SPELL or "spell")
-    if not EP.DraggedSpell() then return false end
+    local entry=p.spells[index]
+    if not EP.PickupEntry(entry) then
+        EP.Say(EP.L(type(entry)=="table" and "Item not carried." or "Spell not in spellbook.")); return false
+    end
     -- Remove exactly this cell only after native pickup succeeded. No compaction.
     p.spells[index]=nil
     if EP.ContentsChanged then EP.ContentsChanged(id) end
@@ -240,12 +268,22 @@ local function installCursorHooks()
         end
     end
     -- Cancel stale spell identity when the cursor is cleared or used elsewhere.
-    for _,name in ipairs({"ClearCursor","PickupAction","PickupMacro","PickupItem","PickupContainerItem","PickupPetAction","PlaceAction"}) do
+    for _,name in ipairs({"ClearCursor","PickupAction","PickupMacro","PickupItem","PickupContainerItem","PickupInventoryItem","PickupPetAction","PlaceAction","UseContainerItem","UseInventoryItem","AutoEquipCursorItem"}) do
         local previous=getglobal(name)
+        local hookName=name
         if type(previous)=="function" then
             _G[name]=function(a,b,c)
+                local item
+                if hookName=="PickupContainerItem" and GetContainerItemLink then
+                    local link=GetContainerItemLink(a,b)
+                    if link then item=EP.ItemData(link) end
+                elseif hookName=="PickupInventoryItem" and GetInventoryItemLink then
+                    local link=GetInventoryItemLink("player",a)
+                    if link then item=EP.ItemData(link) end
+                elseif hookName=="PickupItem" then item=EP.ItemData(a) end
                 dragged=nil
                 local result=previous(a,b,c)
+                if item and CursorHasItem and CursorHasItem() then dragged=item end
                 return result
             end
         end

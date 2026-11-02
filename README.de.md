@@ -1,6 +1,6 @@
 # EasyPocket
 
-**Version:** 0.5.1-octowow-alpha · **Autor:** edwinvancleef577
+**Version:** 0.6.0-octowow-alpha · **Autor:** edwinvancleef577
 
 [English](README.md) | Deutsch
 
@@ -20,7 +20,7 @@ Die Addon-Dateien und `EasyPocket.toc` liegen direkt im Repository-Hauptverzeich
 
 1. WoW beenden.
 2. Auf GitHub **Code → Download ZIP** wählen und entpacken. Den entpackten Ordner in `EasyPocket` umbenennen und nach `Interface/AddOns` kopieren; eine vorhandene Addon-Version ersetzen. Keine zusätzliche Ordnerebene anlegen.
-3. WoW neu starten. `EasyPocket.toc`, `Locale.lua` und `Widgets.lua` müssen direkt im Addon-Ordner liegen.
+3. WoW neu starten. `EasyPocket.toc`, `Locale.lua`, `Items.lua` und `Widgets.lua` müssen direkt im Addon-Ordner liegen.
 
 Vorhandene Taschen, Namen, Icons, Zauber, Leisten-Makros und Positionen werden übernommen. Die bisherigen automatisch berechneten Raster werden einmalig in eine feste Größe mit denselben sichtbaren Zauberpositionen überführt. Danach werden Breite und Höhe ausschließlich im Menü geändert. Keine Dateien im WTF-Ordner löschen.
 
@@ -55,6 +55,19 @@ Es gibt keine zusätzlichen Buttons zum Öffnen oder Aufnehmen eines Taschen-Ico
 
 **Breite** und **Höhe** haben getrennte Dropdowns mit Werten **2 bis 5**. Keine automatische Größenänderung. Das Raster kann komplett gefüllt werden. Beim Verkleinern müssen alle Plätze außerhalb der neuen Grenzen vorher geleert oder nach innen verschoben werden; EasyPocket löscht dafür keine Zauber.
 
+## Ausrüstungs-Verknüpfungen
+
+Ausrüstung aus dem Inventar oder vom Charakterfenster auf einen Taschenplatz ziehen. Gespeichert wird **nur die Funktion zum Anlegen**, nicht der Gegenstand selbst. Beispielsweise können Angel und normale Waffe auf zwei Plätzen liegen; ein Klick legt die jeweilige Ausrüstung außerhalb des Kampfes an.
+
+- Bereits angelegte Ausrüstung bleibt angelegt. Der Klick legt sie nicht ab und löst keinen Benutzen-Effekt aus.
+- Die Verknüpfung merkt sich die Gegenstands-ID und sucht beim Anklicken erneut. Das Umsortieren des Inventars ist damit unproblematisch. Bei mehreren Exemplaren mit derselben ID wird ein passendes angelegtes oder mitgeführtes Exemplar verwendet.
+- Fehlende Gegenstände bleiben als abgedunkelte Verknüpfungen erhalten.
+- Hinzufügen, Verschieben und Löschen einer Verknüpfung verbraucht oder löscht keinen Gegenstand. Beim nativen Ziehen hängt der Gegenstand vorübergehend am Cursor; Ablegen in der Zaubertasche oder Abbrechen gibt ihn über die normale Cursor-Funktion zurück.
+- Zauber und Ausrüstung können dieselbe Tasche nutzen und Plätze tauschen. Kann der bisherige Zielinhalt nicht aufgenommen werden, bleibt der Zielplatz unverändert.
+- Unterstützt sind ausrüstbare Gegenstände wie Angel, Waffen, Rüstung und Schmuckstücke. Verbrauchsgegenstände, Inventartaschen und Köcher gehören noch nicht dazu.
+
+Die üblichen Spielregeln für Stufe, Fertigkeiten, Ausrüstung und freien Inventarplatz gelten weiterhin. Zum Anlegen wird keine Händler- oder Benutzen-Aktion ausgeführt.
+
 ## Freie Platzierung und Drag-and-drop
 
 Zauber direkt aus dem Zauberbuch in eine geöffnete Tasche ziehen. Jeder sichtbare Platz ist einzeln belegbar; Lücken bleiben erhalten. Derselbe Zauber darf an mehreren Stellen vorkommen.
@@ -82,13 +95,13 @@ Jedes Fenster wird mit allen Kind-Frames gemeinsam angeordnet und in den Vorderg
 
 **Debug** zeigt Ladezustand und die letzten zehn abgefangenen EasyPocket-Fehler in einem eigenen Fenster. Text anklicken, Strg+A, Strg+C. Alternativ `/ep debug` oder `/ep status`.
 
-Das Addon verwendet die alten Vanilla-Ereignisparameter und vollständige fünfteilige `SetPoint`-Aufrufe. Geänderte Zauberbuchränge werden neu aufgelöst. Unterstützt werden aktive Spielerzauber, keine Items, Begleiteraktionen oder beliebigen Makros als Tascheninhalt. Eigene Zauberbuch-Addons müssen den nativen `PickupSpell`-Weg verwenden. Eigene Aktionsleisten können über ihre `action`-Slotnummer als Positionsanker erkannt werden.
+Das Addon verwendet die alten Vanilla-Ereignisparameter und vollständige fünfteilige `SetPoint`-Aufrufe. Geänderte Zauberbuchränge werden neu aufgelöst. Unterstützt werden aktive Spielerzauber und Ausrüstungs-Verknüpfungen, keine Verbrauchsgegenstände, Begleiteraktionen oder beliebigen Makros als Tascheninhalt. Eigene Zauberbuch-Addons müssen den nativen `PickupSpell`-Weg verwenden. Eigene Aktionsleisten können über ihre `action`-Slotnummer als Positionsanker erkannt werden.
 
 Für jede Tasche auf einer Aktionsleiste wird ein charakterbezogenes Makro benötigt. Ist das Makrolimit des Clients erreicht, bleibt die Tasche über das Menü nutzbar; fremde Makros werden niemals automatisch gelöscht. Die Makro-Kennung bleibt unabhängig von Listenposition und Namen stabil.
 
 ## Prüfstand
 
-**46 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
+**60 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
 
 **Nicht im echten OctoWoW-Client ausgeführt.** Die tatsächliche Darstellung sowie das Zusammenspiel mit der installierten DragonForgeUI-/Benilla-Version benötigen den Praxistest.
 

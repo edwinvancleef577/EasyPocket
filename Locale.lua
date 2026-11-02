@@ -4,6 +4,13 @@ EP.languages={{"auto","Automatic"},{"enUS","English"},{"deDE","Deutsch"},{"frFR"
  {"esES","Español"},{"ptBR","Português"},{"ruRU","Russian / Русский"},{"koKR","Korean / 한국어"},{"zhCN","Chinese / 简体中文"}}
 local codes={"deDE","frFR","esES","ptBR","ruRU","koKR","zhCN"}
 local rows={
+ {"Drop a spell or equipment here","Zauber oder Ausrüstung hierher ziehen","Déposer un sort ou un équipement ici","Suelta un hechizo o equipo aquí","Solte um feitiço ou equipamento aqui","Перетащите заклинание или экипировку сюда","여기에 주문 또는 장비 놓기","将法术或装备拖到此处"},
+ {"Drag spells or equipment into the pocket.","Zauber oder Ausrüstung in die Tasche ziehen.","Glisser des sorts ou de l’équipement dans le sac.","Arrastra hechizos o equipo a la bolsa.","Arraste feitiços ou equipamentos para a bolsa.","Перетащите заклинания или экипировку в сумку.","주문이나 장비를 가방으로 드래그하세요.","将法术或装备拖入口袋。"},
+ {"Right-click: remove; drag: move entry","Rechtsklick: Eintrag entfernen · Ziehen: verschieben","Clic droit : retirer ; glisser : déplacer","Clic derecho: quitar; arrastrar: mover","Clique direito: remover; arrastar: mover","Правая кнопка: убрать; перетаскивание: переместить","우클릭: 항목 제거 · 드래그: 이동","右键：移除条目；拖动：移动"},
+ {"Click: equip item","Klick: Gegenstand anlegen","Clic : équiper l’objet","Clic: equipar objeto","Clique: equipar item","Нажатие: экипировать предмет","클릭: 아이템 장착","点击：装备物品"},
+ {"Item not carried.","Gegenstand nicht im Inventar oder angelegt.","Objet absent des sacs et de l’équipement.","Objeto no disponible en bolsas ni equipado.","Item ausente das bolsas e do equipamento.","Предмета нет в сумках или экипировке.","가방이나 장착 슬롯에 없는 아이템입니다.","背包和装备栏中没有此物品。"},
+ {"Item cannot be equipped.","Gegenstand kann gerade nicht angelegt werden.","Impossible d’équiper cet objet actuellement.","No se puede equipar este objeto ahora.","Não é possível equipar este item agora.","Сейчас нельзя экипировать этот предмет.","지금 이 아이템을 장착할 수 없습니다.","目前无法装备此物品。"},
+ {"Only equipment can be added.","Hier sind nur ausrüstbare Gegenstände möglich.","Seuls les objets équipables peuvent être ajoutés.","Solo se pueden añadir objetos equipables.","Somente itens equipáveis podem ser adicionados.","Можно добавить только предметы экипировки.","장착 가능한 아이템만 추가할 수 있습니다.","只能添加可装备的物品。"},
  {"Automatic","Automatisch","Automatique","Automático","Automático","Автоматически","자동","自动"},
  {"Pocket","Tasche","Sac","Bolsa","Bolsa","Сумка","가방","口袋"},
  {"My spells","Meine Zauber","Mes sorts","Mis hechizos","Meus feitiços","Мои заклинания","내 주문","我的法术"},

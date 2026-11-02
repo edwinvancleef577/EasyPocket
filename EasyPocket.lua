@@ -39,16 +39,21 @@ local function spellIcon(parent, name, width)
         normal:ClearAllPoints(); normal:SetPoint("CENTER",b,"CENTER",0,-1)
     end
     b:SetPushedTexture("Interface\\Buttons\\UI-Quickslot-Depress")
-    b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square","ADD")
+    b:SetHighlightTexture("") -- No extra hover rectangle over the pocket icon.
     b:SetFrameLevel(parent:GetFrameLevel()+1)
     b:SetScript("OnMouseDown",function() EP.Focus(b) end)
     b:SetScript("OnLeave",function() GameTooltip:Hide() end)
     b:SetScript("OnEnter",function(frame)
         frame = frame or this
         GameTooltip:SetOwner(frame,"ANCHOR_RIGHT")
+        if type(frame.entry)=="table" then
+            EP.ShowItemTooltip(GameTooltip,frame.entry)
+            GameTooltip:AddLine(EP.L("Right-click: remove; drag: move entry"),.8,.8,.8)
+            GameTooltip:Show(); return
+        end
         if not frame.spellName then
             if frame.dropTarget then
-                GameTooltip:SetText(EP.L("Drop a spell here"))
+                GameTooltip:SetText(EP.L("Drop a spell or equipment here"))
                 GameTooltip:AddLine(EP.L("Shift-drag or drag border: move window"),0.8,0.8,0.8)
                 GameTooltip:Show()
             end
@@ -57,7 +62,7 @@ local function spellIcon(parent, name, width)
         local info = knownByName[frame.spellName]
         if info then GameTooltip:SetSpell(info.slot,BOOK)
         else GameTooltip:SetText(frame.spellName .. " — " .. EP.L("Spell not in spellbook.")) end
-        GameTooltip:AddLine(EP.L("Right-click: remove; drag: move spell"),0.8,0.8,0.8)
+        GameTooltip:AddLine(EP.L("Right-click: remove; drag: move entry"),0.8,0.8,0.8)
         GameTooltip:AddLine(EP.L("Shift-drag or drag border: move window"),0.8,0.8,0.8)
         GameTooltip:Show()
     end)
@@ -168,9 +173,18 @@ end
 layoutPocket=function(p,w)
     local columns,rowCount=p.width,p.height
     for index,b in ipairs(w.buttons) do
-        b.spellName=p.spells[index]
+        b.entry=p.spells[index]
+        b.spellName=type(b.entry)=="string" and b.entry or nil
         local info=knownByName[b.spellName]
-        b.icon:SetTexture(info and info.icon or (b.spellName and "Interface\\Icons\\INV_Misc_QuestionMark"))
+        if type(b.entry)=="table" then
+            b.icon:SetTexture(EP.ItemTexture(b.entry))
+            local available=EP.FindItem(b.entry)
+            local shade=available and 1 or .4
+            b.icon:SetVertexColor(shade,shade,shade,1)
+        else
+            b.icon:SetTexture(info and info.icon or (b.spellName and "Interface\\Icons\\INV_Misc_QuestionMark"))
+            b.icon:SetVertexColor(1,1,1,1)
+        end
         b:ClearAllPoints()
         b:SetPoint("TOPLEFT",w,"TOPLEFT",10+math.mod(index-1,5)*42,-10-math.floor((index-1)/5)*42)
         if EP.IsCellVisible(p,index) then b:Show() else b:Hide() end
@@ -214,7 +228,7 @@ local function createPocket(p)
         end))
         b:SetScript("OnDragStart",EP.SafeCallback(function(frame)
             frame=frame or this
-            if IsShiftKeyDown and IsShiftKeyDown() or not frame.spellName then startMove()
+            if IsShiftKeyDown and IsShiftKeyDown() or not frame.entry then startMove()
             else
                 frame.dropAt=GetTime()
                 EP.StartSpellDrag(id,slotIndex)
@@ -228,11 +242,12 @@ local function createPocket(p)
         b:SetScript("OnClick",EP.SafeCallback(function(frame,mouse)
             frame=frame or this; mouse=mouse or arg1
             if frame.dropAt and GetTime()-frame.dropAt<0.2 then return end
-            if CursorHasSpell and CursorHasSpell() then EP.ReceiveSpell(id,slotIndex); return end
+            if (CursorHasSpell and CursorHasSpell()) or (CursorHasItem and CursorHasItem()) then EP.ReceiveSpell(id,slotIndex); return end
             if mouse=="RightButton" then
                 if canEdit() and p.spells[slotIndex] then p.spells[slotIndex]=nil; EP.ContentsChanged(id) end
                 return
             end
+            if type(frame.entry)=="table" then EP.EquipEntry(frame.entry); EP.ContentsChanged(id); return end
             local info=knownByName[frame.spellName]
             if not info then
                 if frame.spellName then say(EP.L("Spell not in spellbook.")) end
@@ -557,6 +572,7 @@ local function initialize()
     db=EP.Normalize(EasyPocketDB); EasyPocketDB=db; EP.db=db
     EP.selectedId=db.pockets[1] and db.pockets[1].id
     scanSpells(); EP.InitializeActions()
+    events:RegisterEvent("BAG_UPDATE"); events:RegisterEvent("UNIT_INVENTORY_CHANGED")
     events:RegisterEvent("SPELLS_CHANGED"); events:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     events:RegisterEvent("PLAYER_REGEN_DISABLED")
     events:RegisterEvent("UPDATE_MACROS"); events:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -572,8 +588,15 @@ events:SetScript("OnEvent",function(frame,eventName)
         elseif not EP.ready then return
         elseif eventName=="SPELLS_CHANGED" then
             scanSpells(); for _,p in ipairs(db.pockets) do EP.ContentsChanged(p.id) end
+        elseif eventName=="BAG_UPDATE" or eventName=="UNIT_INVENTORY_CHANGED" then
+            -- Inventory changes must not overwrite an unsaved name in the editor.
+            for id,w in pairs(windows) do
+                local p=EP.GetPocket(id)
+                if p then layoutPocket(p,w) end
+            end
         elseif eventName=="SPELL_UPDATE_COOLDOWN" then updateCooldowns()
         elseif eventName=="ACTIONBAR_SLOT_CHANGED" or eventName=="ACTIONBAR_PAGE_CHANGED" or eventName=="UPDATE_BONUS_ACTIONBAR" then
+            EP.RefreshActionIcons()
             for id,w in pairs(windows) do
                 local p=EP.GetPocket(id)
                 if p and p.positionMode=="RELATIVE" and w:IsShown() and not w.moving then

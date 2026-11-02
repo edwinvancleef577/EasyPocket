@@ -1,10 +1,10 @@
 # EasyPocket
 
-**Spell pockets for a cleaner OctoWoW interface.**
+**Spell and equipment pockets for a cleaner OctoWoW interface.**
 
 Group spells into small pockets, place a pocket icon on your action bar, and click it to reveal its contents. Configure pockets in the menu and add spells directly from your spellbook.
 
-**Version:** 0.5.1-octowow-alpha · **Author:** edwinvancleef577
+**Version:** 0.6.0-octowow-alpha · **Author:** edwinvancleef577
 
 English | [Deutsch](README.de.md)
 
@@ -12,7 +12,8 @@ English | [Deutsch](README.de.md)
 
 - Multiple pockets, with all settings saved per character.
 - Custom names and icons; drag pocket icons directly onto action bars.
-- Free spell placement with persistent empty cells and duplicate entries.
+- Free spell and equipment-shortcut placement with persistent empty cells and duplicate entries.
+- No extra hover square on pocket icons; tooltips remain available.
 - Independent width and height selectors, each from 2 to 5 slots.
 - Movable, fixed, or action-bar-relative pocket windows.
 - Three designs: Current, Classic, and a standalone pfUI-inspired style.
@@ -51,6 +52,19 @@ Close the game before replacing an existing installation. Keep your WTF / SavedV
 
 The menu contains pocket settings, not a spell list. **Delete pocket**, beside **Choose icon**, requires a second click and removes that pocket and its own macros.
 
+## Equipment shortcuts
+
+Drag equipment from your inventory or character equipment slots into a pocket, just like a spell. The pocket stores an **equip shortcut**, not the physical item. For example, add your fishing pole and your usual weapon to two slots to switch between them with a click.
+
+- Clicking equips the item outside combat. An already equipped item stays equipped; the shortcut does not toggle it off or activate its use effect.
+- Items are found again by item ID on each click, so rearranging bags does not break the shortcut. If several copies share an ID, a matching equipped copy or carried copy is used.
+- Missing items stay in the pocket as dimmed shortcuts. They become available again when carried or equipped.
+- Adding, moving, or deleting a shortcut does not consume or delete the item. Native pickup temporarily puts an item on the cursor; dropping into a pocket or cancelling returns it through the game's normal cursor handling.
+- Equipment shortcuts can share a pocket with spells and be swapped or moved between pockets. If an occupied destination cannot be picked up, that destination remains intact.
+- This version supports equippable gear, including fishing poles, weapons, armor, and trinkets. Consumables, bags, and quivers are not supported as equipment shortcuts.
+
+The game still enforces level, proficiency, bag-space, and equipment restrictions. No merchant-use action is used to equip items.
+
 ## Moving and arranging spells
 
 - Drop onto an empty slot to use that exact position, or onto the background to use the first free slot.
@@ -74,12 +88,12 @@ Language and Debug are at the lower right of the menu. Menu-language changes app
 
 Targets **OctoWoW / Vanilla-style API, Interface 11200, Lua 5.0**. No dependency on DragonForgeUI, pfUI, ClassicAPI, or SuperWoW. Replaced spellbooks must use native `PickupSpell`; custom action bars need a recognizable action slot to serve as relative anchors.
 
-- Pocket contents support active player spells, not items, pet actions, or arbitrary macros.
+- Pocket contents support active player spells and equipment shortcuts, not consumables, pet actions, or arbitrary macros.
 - Learned spell ranks are refreshed; spell names use the game's language. Changing the game language may require reassignment.
 - Each pocket placed on an action bar needs a character macro. If the client's macro limit is reached, the pocket remains accessible from the menu; unrelated macros are never automatically deleted.
 - Settings windows close in combat; pocket opening and spell buttons remain available subject to client restrictions.
 
-This is an alpha release. **46 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.5.1 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
+This is an alpha release. **60 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.6.0 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
 
 ## Troubleshooting and development
 
