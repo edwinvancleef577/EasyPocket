@@ -6,6 +6,10 @@
 
 Mehrere Zaubertaschen pro Charakter für **OctoWoW / Vanilla-API, Interface 11200, Lua 5.0**. Keine Abhängigkeit von DragonForgeUI, pfUI, ClassicAPI oder SuperWoW.
 
+## Screenshot
+
+![EasyPocket-Einstellungen und eine geöffnete Tasche](docs/images/easypocket-menu.png)
+
 ## Installation
 
 ### OctoWoW Launcher

@@ -6,10 +6,11 @@ Group spells into small pockets, place a pocket icon on your action bar, and cli
 
 **Version:** 0.6.1-octowow-alpha · **Author:** edwinvancleef577
 
-[img]https://raw.githubusercontent.com/edwinvancleef577/EasyPocket/main/docs/images/easypocket-menu.png[/img]
-
-
 English | [Deutsch](README.de.md)
+
+## Screenshot
+
+![EasyPocket settings and an open pocket](docs/images/easypocket-menu.png)
 
 ## Features
 
