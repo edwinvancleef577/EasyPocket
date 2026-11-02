@@ -192,18 +192,33 @@ function EP.EnsureMacro(id)
     else CreateMacro(blankName(),icon,EP.MacroBody(pocket.id),1) end
     return EP.FindMacro(pocket.id)
 end
+local function cursorInfo()
+    if not GetCursorInfo then return nil end
+    local ok,kind,a,b,id=pcall(GetCursorInfo)
+    if ok then return kind,a,b,id end
+end
+local function cursorSummary()
+    local kind,a,b,id=cursorInfo()
+    return "cursor="..tostring(kind).." a="..tostring(a).." b="..tostring(b).." id="..tostring(id)..
+        " spell="..tostring(CursorHasSpell and CursorHasSpell()).." item="..tostring(CursorHasItem and CursorHasItem())
+end
 function EP.DraggedEntry()
-    if CursorHasItem and CursorHasItem() then
-        if type(dragged)=="table" then return dragged end
-        if GetCursorInfo then
-            local kind,id=GetCursorInfo()
-            if kind=="item" then return EP.ItemData(id) end
-        end
+    local kind,a,b,id=cursorInfo()
+    if kind=="item" or (CursorHasItem and CursorHasItem()) then
+        if type(dragged)=="table" and dragged.kind=="item" then return dragged end
+        if kind=="item" then return EP.ItemData(a) end
         return nil
     end
-    if type(dragged)~="string" then dragged=nil; return nil end
+    if kind=="spell" then
+        local entry,reason=EP.CaptureSpell(a,b,id)
+        if entry then dragged=entry; return entry end
+        EP.TraceDrag("Cursor spell rejected: "..tostring(reason))
+        return nil
+    end
+    if kind then dragged=nil; return nil end
     if CursorHasSpell and not CursorHasSpell() then dragged=nil; return nil end
-    return dragged
+    if type(dragged)=="string" or (type(dragged)=="table" and dragged.kind=="spell") then return dragged end
+    return nil
 end
 function EP.DraggedSpell()
     local entry=EP.DraggedEntry()
@@ -212,15 +227,19 @@ end
 -- PickupSpell and PickupMacro own the native cursor; never draw a second icon.
 function EP.ReceiveSpell(id,target)
     local pocket=EP.GetPocket(id)
-    if not pocket or not EP.CanEdit() then return false end
+    if not pocket or not EP.CanEdit() then
+        EP.TraceDrag("Drop rejected: pocket missing or edits blocked"); return false
+    end
+    EP.TraceDrag("Drop pocket="..tostring(id).." cell="..tostring(target).." "..cursorSummary())
     local name=EP.DraggedEntry()
     if not name then
-        if CursorHasItem and CursorHasItem() then EP.Say(EP.L("Only equipment can be added.")) end
+        EP.TraceDrag("Drop rejected: no supported spell or equipment identity")
+        EP.Say(EP.L("Drop not recognized. Details: Debug."))
         return false
     end
-    if type(name)=="table" and not ClearCursor then return false end
+    if type(name)=="table" and name.kind=="item" and not ClearCursor then EP.TraceDrag("Drop rejected: ClearCursor unavailable"); return false end
     local ok,displaced=EP.PutSpell(pocket,name,target)
-    if not ok then EP.Say(EP.L("Pocket is full.")); return false end
+    if not ok then EP.TraceDrag("Drop rejected: "..tostring(displaced)); EP.Say(EP.L("Pocket is full.")); return false end
     dragged=nil
     if ClearCursor then ClearCursor() end
     -- Like an action bar: an occupied destination puts its previous spell on the cursor.
@@ -229,10 +248,13 @@ function EP.ReceiveSpell(id,target)
             -- Keep the destination intact if its old shortcut cannot be picked up.
             pocket.spells[target]=displaced
             EP.PickupEntry(name)
-            EP.Say(EP.L(type(displaced)=="table" and "Item not carried." or "Spell not in spellbook."))
+            EP.TraceDrag("Drop rolled back: destination unavailable")
+            EP.Say(type(displaced)=="table" and displaced.kind=="item" and EP.L("Item not carried.") or EP.SpellUnavailable(displaced))
             return false
         end
     end
+    EP.TraceDrag("Drop accepted: "..(type(name)=="table" and name.kind or "spell")..
+        " id="..tostring(type(name)=="table" and (name.spellId or name.itemId) or nil))
     if EP.ContentsChanged then EP.ContentsChanged(pocket.id) end
     return true
 end
@@ -242,7 +264,8 @@ function EP.StartSpellDrag(id,index)
     if (CursorHasItem and CursorHasItem()) or (CursorHasSpell and CursorHasSpell()) then return false end
     local entry=p.spells[index]
     if not EP.PickupEntry(entry) then
-        EP.Say(EP.L(type(entry)=="table" and "Item not carried." or "Spell not in spellbook.")); return false
+        EP.TraceDrag("Pickup rejected: saved entry unavailable")
+        EP.Say(type(entry)=="table" and entry.kind=="item" and EP.L("Item not carried.") or EP.SpellUnavailable(entry)); return false
     end
     -- Remove exactly this cell only after native pickup succeeded. No compaction.
     p.spells[index]=nil
@@ -254,15 +277,15 @@ local function installCursorHooks()
         local previous=PickupSpell
         PickupSpell=function(slot,book)
             dragged=nil
-            local name
-            if book==nil or book==(BOOKTYPE_SPELL or "spell") then
-                name=GetSpellName(slot,BOOKTYPE_SPELL or "spell")
-                if IsSpellPassive and IsSpellPassive(slot,BOOKTYPE_SPELL or "spell") then name=nil end
-            end
             local result=previous(slot,book)
-            if name and (not CursorHasSpell or CursorHasSpell()) then
-                dragged=name
-            end
+            local kind,cursorSlot,cursorBook,cursorId=cursorInfo()
+            local entry,reason
+            if kind=="spell" then entry,reason=EP.CaptureSpell(cursorSlot,cursorBook,cursorId)
+            elseif not kind and (not CursorHasSpell or CursorHasSpell()) then entry,reason=EP.CaptureSpell(slot,book)
+            else reason="native pickup did not produce a spell cursor" end
+            dragged=entry
+            EP.TraceDrag("PickupSpell slot="..tostring(slot).." book="..tostring(book).." "..cursorSummary()..
+                " result="..(entry and "recognized" or tostring(reason)))
             if EP.DragChanged then EP.DragChanged() end
             return result
         end

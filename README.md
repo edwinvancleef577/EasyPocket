@@ -4,7 +4,7 @@
 
 Group spells into small pockets, place a pocket icon on your action bar, and click it to reveal its contents. Configure pockets in the menu and add spells directly from your spellbook.
 
-**Version:** 0.6.0-octowow-alpha · **Author:** edwinvancleef577
+**Version:** 0.6.1-octowow-alpha · **Author:** edwinvancleef577
 
 English | [Deutsch](README.de.md)
 
@@ -52,6 +52,12 @@ Close the game before replacing an existing installation. Keep your WTF / SavedV
 
 The menu contains pocket settings, not a spell list. **Delete pocket**, beside **Choose icon**, requires a second click and removes that pocket and its own macros.
 
+## Custom spells and missing labels
+
+Missing spell names no longer terminate the spellbook scan. When the client exposes spell IDs through its spell links or cursor API, EasyPocket can keep a spell shortcut even if its label or tooltip is missing. These entries use the actual picked spell identity; a missing name is displayed as a spell ID.
+
+On a stock client with neither name nor ID, an icon-backed spell pickup can be used in the current unchanged session. After a reload or spellbook change it must be dragged in again; EasyPocket does not persist a bare slot number that might later cast another spell. Unsupported cursor types and passive entries remain rejected and are now recorded in Debug.
+
 ## Equipment shortcuts
 
 Drag equipment from your inventory or character equipment slots into a pocket, just like a spell. The pocket stores an **equip shortcut**, not the physical item. For example, add your fishing pole and your usual weapon to two slots to switch between them with a click.
@@ -78,7 +84,7 @@ EasyPocket uses the native spell and macro cursor directly, without drawing an a
 
 ## Window settings
 
-**Free movement** is the default; new windows start at screen center. Drag a border or empty slot to move the window, or Shift-drag a spell. **Fixed** locks the chosen position. **Relative to pocket** follows a recognized action-bar button using the saved offset; without a recognized button it retains the saved screen position.
+**Free movement** is the default; new windows start at screen center. Drag a border or empty slot to move the window, or Shift-drag a spell. **Fixed** locks the chosen position. **Relative to pocket: left** attaches directly to the left of the recognized action-bar button, aligning the top edges. **Relative to pocket: above** attaches directly above it, aligning the left edges. Both follow the button with a small gap and cannot be dragged separately; select Free movement for manual placement. Without a recognized button, the last saved screen position or screen center is used. The old relative mode migrates to Above and discards its arbitrary offset.
 
 **Current** keeps the previous tooltip-style frame. **Classic**, the default for new pockets, uses WoW dialog textures and framed slots. **pfUI style** uses flat dark surfaces and thin borders without requiring pfUI.
 
@@ -93,7 +99,7 @@ Targets **OctoWoW / Vanilla-style API, Interface 11200, Lua 5.0**. No dependency
 - Each pocket placed on an action bar needs a character macro. If the client's macro limit is reached, the pocket remains accessible from the menu; unrelated macros are never automatically deleted.
 - Settings windows close in combat; pocket opening and spell buttons remain available subject to client restrictions.
 
-This is an alpha release. **60 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.6.0 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
+This is an alpha release. **75 behavior tests pass under Lua 5.0.3 with a simulated Vanilla API**, alongside syntax checks. The 0.6.1 changes have **not been tested in the actual OctoWoW client**; appearance and interactions with particular client/UI modifications still need in-game validation.
 
 ## Troubleshooting and development
 
@@ -103,7 +109,7 @@ This is an alpha release. **60 behavior tests pass under Lua 5.0.3 with a simula
 | `/ep debug` | Open the debug window |
 | `/ep status` | Show load status and recent captured errors |
 
-The debug window retains the last ten captured EasyPocket errors. Click the text and use Ctrl+A / Ctrl+C to copy it. When reporting a problem, include the addon version, client version, and reproduction steps. Review reports before sharing; do not upload your entire WTF folder, SavedVariables, or account information.
+The debug window retains the last ten captured EasyPocket errors and the last twenty drag/drop diagnostics, including rejected drops that do not raise a Lua error. Reproduce a failed drag, then open `/ep debug` before reloading; diagnostics are kept only for the current session. Click the text and use Ctrl+A / Ctrl+C to copy it. When reporting a problem, include the addon version, client version, and reproduction steps. Review reports before sharing; do not upload your entire WTF folder, SavedVariables, or account information.
 
 Run tests from the addon directory with Lua 5.0.3:
 

@@ -9,7 +9,7 @@ local function start(saved,mode,minimap,setup)
  EasyPocketDB=saved
  EasyPocketMinimapDB=minimap
  dofile("Locale.lua"); dofile("Widgets.lua"); dofile("Bootstrap.lua")
- if mode~="missing" then dofile("Model.lua"); dofile("Items.lua"); dofile("Actions.lua"); dofile("EasyPocket.lua") end
+ if mode~="missing" then dofile("Model.lua"); dofile("Spells.lua"); dofile("Items.lua"); dofile("Actions.lua"); dofile("EasyPocket.lua") end
  if mode=="failure" then GetSpellName=function() error("simulated startup failure") end end
  if mode=="unsupported" then GetSpellName=nil end
  if setup then setup() end
@@ -35,7 +35,7 @@ local function choose(button,index)
 end
 test("startup migrates old pocket and keeps icon name position",function()
  local ep=start({name="Old",spells={"Fireball","Teleport"},iconTexture="custom",position={x=120,y=250}})
- assert(ep.ready and not ep.lastError and EasyPocketDB.version==6)
+ assert(ep.ready and not ep.lastError and EasyPocketDB.version==7)
  assert(pocket().name=="Old" and pocket().spells[2]=="Teleport" and pocket().position.x==120)
  assert(pocket().iconTexture=="custom" and pocket().width==2 and pocket().height==2)
 end)
@@ -275,9 +275,61 @@ test("relative window tracks correct action and moves between slots",function()
  local ep=start(); ep.PickupMacro(1); ClearCursor()
  local a=CreateFrame("Button","ActionButton1",UIParent); a.action=1; a.cx,a.cy=100,150
  local b=CreateFrame("Button","ActionButton2",UIParent); b.action=2
- Actions[1]=Macros[1][1]; ep.SetPositionMode(1,"RELATIVE"); ep.Toggle(1)
- assert(window().point[2]==a and pocket().relative.x==400)
+ Actions[1]=Macros[1][1]; ep.SetPositionMode(1,"RELATIVE_TOP"); ep.Toggle(1)
+ assert(window().point[2]==a and window().point[1]=="BOTTOMLEFT" and window().point[5]==8)
  Actions[1]=nil; Actions[2]=Macros[1][1]; Event("ACTIONBAR_SLOT_CHANGED")
+ assert(window().point[2]==b)
+end)
+test("relative dropdowns attach edges and ignore old screen offsets",function()
+ local ep=start({position={x=900,y=800}}); ep.PickupMacro(1); ClearCursor()
+ local a=CreateFrame("Button","ActionButton1",UIParent); a.action=1; Actions[1]=Macros[1][1]
+ ep.Toggle(1); ep.OpenEditor(); choose(EasyPocketPosition,3)
+ assert(pocket().positionMode=="RELATIVE_LEFT" and window().point[2]==a)
+ assert(window().point[1]=="TOPRIGHT" and window().point[3]=="TOPLEFT" and window().point[4]==-8)
+ Trigger(window(),"OnDragStart"); assert(not window().moving)
+ choose(EasyPocketPosition,4)
+ assert(pocket().positionMode=="RELATIVE_TOP" and window().point[1]=="BOTTOMLEFT" and window().point[5]==8)
+ ep.ChangeDimensions(5,4); assert(window().point[2]==a and window():GetWidth()==224)
+ choose(EasyPocketPosition,1); Trigger(window(),"OnDragStart"); assert(window().moving)
+ Trigger(window(),"OnDragStop")
+end)
+test("legacy relative mode migrates above and both new modes survive reload",function()
+ local saved={version=6,pockets={{id=1,positionMode="RELATIVE",relative={x=900,y=800},spells={}}}}
+ local ep=start(saved); assert(pocket().positionMode=="RELATIVE_TOP" and not pocket().relative)
+ ep=start(EasyPocketDB); assert(pocket().positionMode=="RELATIVE_TOP")
+ ep.SetPositionMode(1,"RELATIVE_LEFT"); ep=start(EasyPocketDB)
+ assert(pocket().positionMode=="RELATIVE_LEFT")
+end)
+test("relative anchoring handles side bars scaled buttons and missing anchors",function()
+ local ep=start({position={x=123,y=456}}); ep.SetPositionMode(1,"RELATIVE_LEFT"); ep.Toggle(1)
+ assert(window().point[2]==UIParent and window().point[4]==123)
+ ep.PickupMacro(1); ClearCursor()
+ local a=CreateFrame("Button","MultiBarRightButton1",UIParent); a:SetScale(.6)
+ Actions[25]=Macros[1][1]; Event("ACTIONBAR_SLOT_CHANGED")
+ assert(window().point[2]==a and window().point[1]=="TOPRIGHT")
+ a:Hide(); Event("ACTIONBAR_PAGE_CHANGED"); assert(window().point[2]==UIParent)
+ a:Show(); Event("ACTIONBAR_PAGE_CHANGED"); assert(window().point[2]==a)
+end)
+test("relative anchors resolve clicked copies bonus bars and paged slots",function()
+ local ep=start(); ep.PickupMacro(1); ClearCursor()
+ local a=CreateFrame("Button","ActionButton1",UIParent); a.action=1; a.paged=13
+ local b=CreateFrame("Button","BonusActionButton1",UIParent); b.action=2; b.paged=73
+ ActionButton_GetPagedID=function(button) return button.paged end
+ Actions[13]=Macros[1][1]; Actions[73]=Macros[1][1]
+ ep.SetPositionMode(1,"RELATIVE_TOP"); this=b; ep.Toggle(1); this=nil
+ assert(window().point[2]==b)
+ Actions[73]=nil; Event("UPDATE_BONUS_ACTIONBAR"); assert(window().point[2]==a)
+ a.paged=1; Actions[1]=Macros[1][1]; Event("ACTIONBAR_PAGE_CHANGED")
+ assert(window().point[2]==a)
+end)
+test("custom bar action slots anchor and follow replacement buttons",function()
+ local ep=start(); ep.PickupMacro(1); ClearCursor()
+ local a=CreateFrame("Button","CustomPocketBarA",UIParent); a.action=90
+ local b=CreateFrame("Button","CustomPocketBarB",UIParent); b.action=91
+ EnumerateFrames=function(previous) if not previous then return a elseif previous==a then return b end end
+ Actions[90]=Macros[1][1]; ep.SetPositionMode(1,"RELATIVE_LEFT"); ep.Toggle(1)
+ assert(window().point[2]==a)
+ Actions[90]=nil; Actions[91]=Macros[1][1]; Event("ACTIONBAR_SLOT_CHANGED")
  assert(window().point[2]==b)
 end)
 test("spellbook changes refresh rank texture and slot",function()
@@ -398,7 +450,7 @@ end)
 test("item shortcuts survive reload and coexist with sparse spell cells",function()
  local ep=start({version=5,pockets={{id=1,width=3,height=3,spells={[1]="Fireball",[13]="Teleport"}}},nextId=2})
  addPole(ep,1,2,2); local saved=EasyPocketDB
- ep=start(saved); assert(saved.version==6 and pocket().spells[7].itemId==6256)
+ ep=start(saved); assert(saved.version==7 and pocket().spells[7].itemId==6256)
  assert(pocket().spells[1]=="Fireball" and pocket().spells[13]=="Teleport" and not pocket().spells[2])
  ep.Toggle(1); assert(cell(1,2,2).icon.texture=="pole-icon")
 end)
@@ -484,5 +536,108 @@ test("inventory refresh does not overwrite an unfinished pocket name",function()
  local ep=start(); ep.OpenEditor(); EasyPocketName:SetText("Unfinished")
  Event("BAG_UPDATE"); Event("UNIT_INVENTORY_CHANGED")
  assert(EasyPocketName:GetText()=="Unfinished")
+end)
+local function customBook()
+ Spells={[1]={name="Fireball",id=101,icon="fire"},[2]={name=nil,id=90001,icon="wood"},
+ [3]={name="",id=90002,icon="pet"},[4]={name="Teleport",id=102,icon="teleport"}}
+ GetSpellLink=function(slot,book)
+  local spell=Spells[slot]
+  if spell then return "|Hspell:"..spell.id.."|h[]|h",spell.id end
+ end
+ GetNumSpellTabs=function() return 1 end
+ GetSpellTabInfo=function() return "General",nil,0,4 end
+ GetCursorInfo=function()
+  if Cursor and Cursor[1]=="spell" then
+   local spell=Spells[Cursor[2]]
+   return "spell",Cursor[2],"spell",spell and spell.id
+  end
+ end
+end
+test("unnamed custom spells remain distinct and do not stop later spellbook scanning",function()
+ local ep=start(nil,nil,nil,customBook); ep.Toggle(1)
+ PickupSpell(2,"spell"); assert(ep.ReceiveSpell(1,1))
+ PickupSpell(3,"spell"); assert(ep.ReceiveSpell(1,2))
+ assert(pocket().spells[1].spellId==90001 and pocket().spells[2].spellId==90002)
+ assert(ep.GetSpellSlot("Teleport")==4)
+ assert(cell(1,1,1).icon.texture=="wood" and cell(1,2,1).icon.texture=="pet")
+ Click(cell(1,1,1)); assert(LastCast[1]==2)
+ Click(cell(1,2,1)); assert(LastCast[1]==3)
+ Trigger(cell(1,1,1),"OnEnter"); assert(GameTooltip:GetText()=="Spell #90001")
+ assert(cell(1,1,1).cooldown.cooldown)
+end)
+test("custom spell IDs survive reload and resolve after spellbook reordering",function()
+ local ep=start(nil,nil,nil,customBook); PickupSpell(2,"spell"); assert(ep.ReceiveSpell(1,1))
+ local saved=EasyPocketDB
+ ep=start(saved,nil,nil,function() customBook(); Spells[1],Spells[2]=Spells[2],Spells[1] end)
+ ep.Toggle(1); Click(cell(1,1,1)); assert(LastCast[1]==1 and saved.version==7)
+ Spells[1],Spells[3]=Spells[3],Spells[1]; Event("SPELLS_CHANGED")
+ Click(cell(1,1,1)); assert(LastCast[1]==3)
+end)
+test("cursor identity handles spell pickups that bypass the hooked function",function()
+ local ep=start(nil,nil,nil,customBook); ep.Toggle(1)
+ Cursor={"spell",3,"spell"}; assert(ep.ReceiveSpell(1,1))
+ assert(pocket().spells[1].spellId==90002)
+end)
+test("unnamed fallback without ID works only in the unchanged current session",function()
+ local ep=start(nil,nil,nil,function() Spells[2]={name="",icon="wood"} end)
+ ep.Toggle(1); PickupSpell(2,"spell"); assert(ep.ReceiveSpell(1,1))
+ assert(pocket().spells[1].kind=="spell" and not pocket().spells[1].spellId)
+ Click(cell(1,1,1)); assert(LastCast[1]==2)
+ local saved=EasyPocketDB
+ Spells[2]={name="Different",icon="wood"}; Event("SPELLS_CHANGED"); LastCast=nil
+ Click(cell(1,1,1)); assert(not LastCast)
+ ep=start(saved,nil,nil,function() Spells[2]={name="Different",icon="wood"} end)
+ ep.Toggle(1); Click(cell(1,1,1)); assert(not LastCast and pocket().spells[1])
+ Trigger(cell(1,1,1),"OnEnter"); assert(GameTooltip:GetText()==ep.L("Unnamed spell"))
+end)
+test("custom spell dragging and swaps preserve technical identity",function()
+ local ep=start(nil,nil,nil,customBook); ep.Toggle(1); ep.NewPocket(); ep.Toggle(2)
+ PickupSpell(2,"spell"); ep.ReceiveSpell(1,1)
+ PickupSpell(3,"spell"); ep.ReceiveSpell(2,1)
+ Trigger(cell(1,1,1),"OnDragStart"); assert(not pocket().spells[1])
+ Trigger(cell(2,1,1),"OnReceiveDrag")
+ assert(pocket(2).spells[1].spellId==90001 and ep.DraggedEntry().spellId==90002)
+ Trigger(cell(1,1,1),"OnReceiveDrag"); assert(pocket().spells[1].spellId==90002)
+end)
+test("passive and unsupported drops are recorded without requiring a Lua error",function()
+ local ep=start(); ep.ShowStatus(); PickupSpell(4,"spell"); assert(not ep.ReceiveSpell(1,1))
+ assert(not ep.lastError and string.find(EasyPocketStatusText:GetText(),"passive spell",1,true))
+ assert(string.find(EasyPocketStatusText:GetText(),"Drop rejected",1,true))
+ GetCursorInfo=function() return "companion",17,"CRITTER" end
+ Cursor={"custom"}; assert(not ep.ReceiveSpell(1,1))
+ assert(string.find(EasyPocketStatusText:GetText(),"cursor=companion",1,true))
+ assert(string.find(EasyPocketStatusText:GetText(),"a=17",1,true))
+end)
+test("cursor ID mismatch cannot bind a different spell and diagnostic history is bounded",function()
+ local ep=start(nil,nil,nil,customBook); ep.ShowStatus()
+ GetCursorInfo=function() return "spell",2,"spell",90002 end
+ Cursor={"spell",2,"spell"}; assert(not ep.ReceiveSpell(1,1))
+ assert(string.find(EasyPocketStatusText:GetText(),"ID mismatch",1,true))
+ ep.TraceDrag("old-marker"); for i=1,21 do ep.TraceDrag("new-marker-"..i) end
+ assert(not string.find(EasyPocketStatusText:GetText(),"old-marker",1,true))
+ assert(string.find(EasyPocketStatusText:GetText(),"new-marker-21",1,true))
+end)
+test("cursor-only IDs resolve through client slot lookup without tooltip metadata",function()
+ local ep=start(nil,nil,nil,function()
+  customBook(); GetSpellLink=nil
+  GetSpellName=function(slot) if slot==1 then return "Fireball" end end
+  GetSpellTexture=function() return nil end
+  GetCursorInfo=function() if Cursor then return "spell",2,"spell",90001 end end
+  FindSpellBookSlotByID=function(id) if id==90001 then return 2 end end
+ end)
+ Cursor={"spell",2,"spell"}; assert(ep.ReceiveSpell(1,1))
+ ep.Toggle(1); Click(cell(1,1,1)); assert(LastCast[1]==2)
+ Event("SPELLS_CHANGED"); LastCast=nil; Click(cell(1,1,1)); assert(LastCast[1]==2)
+end)
+test("named stock spells still use highest rank after dragging a lower rank",function()
+ local ep=start(); PickupSpell(1,"spell"); assert(ep.ReceiveSpell(1,1))
+ ep.Toggle(1); Click(cell(1,1,1)); assert(LastCast[1]==2)
+end)
+test("existing name-only spells can be dragged when client starts exposing IDs",function()
+ local ep=start({spells={"Fireball"}},nil,nil,customBook); ep.Toggle(1)
+ Trigger(cell(1,1,1),"OnDragStart")
+ assert(not pocket().spells[1] and ep.DraggedEntry().spellId==101)
+ Trigger(cell(1,2,1),"OnReceiveDrag")
+ assert(pocket().spells[2].spellId==101)
 end)
 print(passed.." tests passed under ".._VERSION.." (mocked Vanilla UI/API).")

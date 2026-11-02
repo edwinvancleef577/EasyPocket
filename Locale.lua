@@ -4,6 +4,9 @@ EP.languages={{"auto","Automatic"},{"enUS","English"},{"deDE","Deutsch"},{"frFR"
  {"esES","Español"},{"ptBR","Português"},{"ruRU","Russian / Русский"},{"koKR","Korean / 한국어"},{"zhCN","Chinese / 简体中文"}}
 local codes={"deDE","frFR","esES","ptBR","ruRU","koKR","zhCN"}
 local rows={
+ {"Unnamed spell","Unbenannter Zauber","Sort sans nom","Hechizo sin nombre","Feitiço sem nome","Заклинание без названия","이름 없는 주문","未命名法术"},
+ {"Drag this spell again after reload or spellbook changes.","Diesen Zauber nach Neuladen oder Zauberbuchänderungen erneut hineinziehen.","Glisser ce sort à nouveau après rechargement ou modification du grimoire.","Vuelve a arrastrar este hechizo tras recargar o cambiar el libro.","Arraste este feitiço novamente após recarregar ou alterar o livro.","Перетащите заклинание заново после перезагрузки или изменения книги.","재시작 또는 주문책 변경 후 이 주문을 다시 드래그하세요.","重新加载或法术书改变后，请再次拖入此法术。"},
+ {"Drop not recognized. Details: Debug.","Eintrag nicht erkannt. Details im Debug-Fenster.","Élément non reconnu. Détails : Diagnostic.","Entrada no reconocida. Detalles: Depuración.","Entrada não reconhecida. Detalhes: Diagnóstico.","Элемент не распознан. Подробности: Диагностика.","항목을 인식하지 못했습니다. 디버그 창을 확인하세요.","无法识别条目。详情见调试窗口。"},
  {"Drop a spell or equipment here","Zauber oder Ausrüstung hierher ziehen","Déposer un sort ou un équipement ici","Suelta un hechizo o equipo aquí","Solte um feitiço ou equipamento aqui","Перетащите заклинание или экипировку сюда","여기에 주문 또는 장비 놓기","将法术或装备拖到此处"},
  {"Drag spells or equipment into the pocket.","Zauber oder Ausrüstung in die Tasche ziehen.","Glisser des sorts ou de l’équipement dans le sac.","Arrastra hechizos o equipo a la bolsa.","Arraste feitiços ou equipamentos para a bolsa.","Перетащите заклинания или экипировку в сумку.","주문이나 장비를 가방으로 드래그하세요.","将法术或装备拖入口袋。"},
  {"Right-click: remove; drag: move entry","Rechtsklick: Eintrag entfernen · Ziehen: verschieben","Clic droit : retirer ; glisser : déplacer","Clic derecho: quitar; arrastrar: mover","Clique direito: remover; arrastar: mover","Правая кнопка: убрать; перетаскивание: переместить","우클릭: 항목 제거 · 드래그: 이동","右键：移除条目；拖动：移动"},
@@ -23,7 +26,8 @@ local rows={
  {"Position","Position","Position","Posición","Posição","Положение","위치","位置"},
  {"Free","Frei beweglich","Déplaçable","Movimiento libre","Movimento livre","Свободно","자유 이동","自由移动"},
  {"Fixed","Fest verankert","Fixe","Fija","Fixa","Закреплено","고정","固定"},
- {"Relative to pocket","Relativ zur Tasche","Relative au sac","Relativa a la bolsa","Relativa à bolsa","Относительно сумки","가방 기준","相对口袋"},
+ {"Relative to pocket: left","Relativ zur Tasche: links","À gauche du sac","A la izquierda de la bolsa","À esquerda da bolsa","Слева от сумки","가방 왼쪽","口袋左侧"},
+ {"Relative to pocket: above","Relativ zur Tasche: oben","Au-dessus du sac","Encima de la bolsa","Acima da bolsa","Над сумкой","가방 위쪽","口袋上方"},
  {"Design","Design","Style","Diseño","Estilo","Стиль","디자인","样式"},
  {"Current","Aktuell","Actuel","Actual","Atual","Текущий","기존","当前"},
  {"Classic","Klassisch","Classique","Clásico","Clássico","Классический","클래식","经典"},

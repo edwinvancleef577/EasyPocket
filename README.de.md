@@ -1,6 +1,6 @@
 # EasyPocket
 
-**Version:** 0.6.0-octowow-alpha · **Autor:** edwinvancleef577
+**Version:** 0.6.1-octowow-alpha · **Autor:** edwinvancleef577
 
 [English](README.md) | Deutsch
 
@@ -45,7 +45,10 @@ Es gibt keine zusätzlichen Buttons zum Öffnen oder Aufnehmen eines Taschen-Ico
 
 - **Frei beweglich:** Standard für neue Taschen; neues Fenster zuerst in der Bildschirmmitte. Rand oder leeren Platz ziehen, auf einem Zauber Umschalt-Ziehen verwenden.
 - **Fest verankert:** die gewählte Bildschirmposition sperren.
-- **Relativ zur Tasche:** dem erkannten Leisten-Icon mit dem gewählten Abstand folgen. Verschieben des Fensters ändert den Abstand. Ohne erkannten Button bleibt zunächst die gespeicherte Bildschirmposition bzw. die Bildschirmmitte erhalten.
+- **Relativ zur Tasche: links:** direkt links neben dem erkannten Leisten-Icon öffnen, Oberkanten auf gleicher Höhe.
+- **Relativ zur Tasche: oben:** direkt oberhalb des erkannten Leisten-Icons öffnen, linke Kanten auf gleicher Höhe.
+
+Beide relativen Positionen folgen dem Leisten-Icon mit einem kleinen Abstand und lassen sich nicht separat ziehen. Zum manuellen Verschieben „Frei beweglich“ wählen. Ohne erkannten Button bleibt die zuletzt gespeicherte Bildschirmposition bzw. die Bildschirmmitte erhalten. Die bisherige Einstellung „Relativ zur Tasche“ wird beim Laden auf „oben“ umgestellt; alte Abstände entfallen.
 
 **Design** als Dropdown:
 
@@ -54,6 +57,12 @@ Es gibt keine zusätzlichen Buttons zum Öffnen oder Aufnehmen eines Taschen-Ico
 - **PFUI-Stil:** flache dunkle Flächen und schmale schwarze Rahmen. Eigenständige Darstellung, keine pfUI-Abhängigkeit.
 
 **Breite** und **Höhe** haben getrennte Dropdowns mit Werten **2 bis 5**. Keine automatische Größenänderung. Das Raster kann komplett gefüllt werden. Beim Verkleinern müssen alle Plätze außerhalb der neuen Grenzen vorher geleert oder nach innen verschoben werden; EasyPocket löscht dafür keine Zauber.
+
+## Sonderzauber ohne Beschriftung
+
+Fehlende Zaubernamen beenden die Zauberbuchsuche nicht mehr. Liefert der Client eine Zauber-ID über Zauberlinks oder die Cursor-API, kann EasyPocket auch Einträge ohne Namen beziehungsweise mit leerem Tooltip speichern. Solche Einträge verwenden die tatsächlich aufgenommene Zauberidentität; fehlt der Name, zeigt der Tooltip die ID.
+
+Ohne Namen und ohne ID lässt sich ein Eintrag mit erkanntem Icon nur während der aktuellen unveränderten Sitzung verwenden. Nach Neuladen oder Änderung des Zauberbuchs muss er erneut hineingezogen werden. Eine bloße Platznummer wird nicht dauerhaft zum Wirken verwendet, da sie später einen anderen Zauber bezeichnen könnte. Nicht unterstützte Cursor-Typen und passive Einträge werden weiter abgelehnt; der Grund steht nun im Debug-Fenster.
 
 ## Ausrüstungs-Verknüpfungen
 
@@ -93,7 +102,7 @@ Jedes Fenster wird mit allen Kind-Frames gemeinsam angeordnet und in den Vorderg
 
 ## Debug und Kompatibilität
 
-**Debug** zeigt Ladezustand und die letzten zehn abgefangenen EasyPocket-Fehler in einem eigenen Fenster. Text anklicken, Strg+A, Strg+C. Alternativ `/ep debug` oder `/ep status`.
+**Debug** zeigt Ladezustand, die letzten zehn abgefangenen EasyPocket-Fehler und die letzten zwanzig Drag-and-drop-Diagnosen. Auch abgelehnte Drops ohne Lua-Fehler werden erfasst. Den Fehler nachstellen und direkt danach `/ep debug` öffnen, bevor neu geladen wird; die Diagnose gilt nur für die aktuelle Sitzung. Text anklicken, Strg+A, Strg+C. Alternativ `/ep debug` oder `/ep status`.
 
 Das Addon verwendet die alten Vanilla-Ereignisparameter und vollständige fünfteilige `SetPoint`-Aufrufe. Geänderte Zauberbuchränge werden neu aufgelöst. Unterstützt werden aktive Spielerzauber und Ausrüstungs-Verknüpfungen, keine Verbrauchsgegenstände, Begleiteraktionen oder beliebigen Makros als Tascheninhalt. Eigene Zauberbuch-Addons müssen den nativen `PickupSpell`-Weg verwenden. Eigene Aktionsleisten können über ihre `action`-Slotnummer als Positionsanker erkannt werden.
 
@@ -101,7 +110,7 @@ Für jede Tasche auf einer Aktionsleiste wird ein charakterbezogenes Makro benö
 
 ## Prüfstand
 
-**60 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
+**75 Verhaltenstests unter Lua 5.0.3** mit nachgebildeter Vanilla-API bestanden; Syntax aller Lua-Dateien geprüft. Geprüft sind unter anderem Datenmigration, feste Zellpositionen, vollständige Spalten, Dropdowns, Sprachwechsel, Größenänderungen, Drag-and-drop inklusive Cursor-Tausch, Designwechsel, Fenster-Ebenen, Makros und Fehleranzeige.
 
 **Nicht im echten OctoWoW-Client ausgeführt.** Die tatsächliche Darstellung sowie das Zusammenspiel mit der installierten DragonForgeUI-/Benilla-Version benötigen den Praxistest.
 

@@ -1,5 +1,8 @@
 -- Deliberately models legacy global this/event/arg1 callbacks only.
 -- Unknown frame methods fail. No C_Spell, SetSize, SecureHandlers or C_Timer.
+for _,frame in ipairs(Frames or {}) do
+ if frame.name and _G[frame.name]==frame then _G[frame.name]=nil end
+end
 Frames,Macros,Messages,Actions={}, {}, {}, {}
 Combat,Cursor,LastCast,Shift=false,nil,nil,false
 Clock,EditCalls=100,0
@@ -12,7 +15,7 @@ ItemDB[6256]={name="Fishing Pole",icon="pole-icon",equip="INVTYPE_2HWEAPON",slot
 ItemDB[7005]={name="Skinning Knife",icon="knife-icon",equip="INVTYPE_WEAPON",slot=16}
 ItemDB[6948]={name="Hearthstone",icon="stone-icon",equip=""}
 ItemPickupLocked,EquipFailure,EquipCalls=false,false,0
-GetCursorInfo=nil
+GetCursorInfo,GetSpellLink,FindSpellBookSlotByID,GetNumSpellTabs,GetSpellTabInfo=nil,nil,nil,nil,nil
 MAX_ACCOUNT_MACROS,MAX_CHARACTER_MACROS=nil,nil
 SlashCmdList,UISpecialFrames={},{}
 BOOKTYPE_SPELL="spell"
@@ -110,8 +113,8 @@ function GetSpellName(slot,book)
  assert(book=="spell")
  if Spells[slot] then return Spells[slot].name,Spells[slot].rank end
 end
-function GetSpellTexture(slot) return "icon"..slot end
-function IsSpellPassive(slot) return Spells[slot].passive end
+function GetSpellTexture(slot) if Spells[slot] then return Spells[slot].icon or "icon"..slot end end
+function IsSpellPassive(slot) return Spells[slot] and Spells[slot].passive end
 function GetSpellCooldown() return 1,2,1 end
 function CooldownFrame_SetTimer(frame,start,duration,enabled) frame.cooldown={start,duration,enabled} end
 function CastSpell(slot,book) LastCast={slot,book} end

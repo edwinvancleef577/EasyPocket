@@ -4,9 +4,10 @@ EasyPocket = EasyPocket or {}
 local EP = EasyPocket
 local function L(key) return EP.L and EP.L(key) or key end
 local function size(frame, width, height) frame:SetWidth(width); frame:SetHeight(height) end
-EP.VERSION = "0.6.0-octowow-alpha"
+EP.VERSION = "0.6.1-octowow-alpha"
 local icon, statusWindow
 local errorLog={}
+local dragLog={}
 
 local function say(message)
     local value = "|cff65d6c2EasyPocket:|r " .. message
@@ -66,13 +67,22 @@ local function statusText()
     if EP.lastError then
         table.insert(lines,table.concat(errorLog,"\n\n"))
     elseif not EP.coreLoaded then
-        lines[table.getn(lines) + 1] = "EasyPocket.lua wurde nicht vollständig geladen. Bitte den kompletten Addon-Ordner ersetzen und WoW neu starten."
+        table.insert(lines,"EasyPocket.lua wurde nicht vollständig geladen. Bitte den kompletten Addon-Ordner ersetzen und WoW neu starten.")
     elseif not EP.ready then
-        lines[table.getn(lines) + 1] = EP.startupMessage or "Die Initialisierung ist noch nicht abgeschlossen."
+        table.insert(lines,EP.startupMessage or "Die Initialisierung ist noch nicht abgeschlossen.")
     else
-        lines[table.getn(lines) + 1] = "Taschen im Menü verwalten; Zauber direkt ins Taschenfenster ziehen."
+        table.insert(lines,"Taschen im Menü verwalten; Zauber direkt ins Taschenfenster ziehen.")
     end
+    table.insert(lines,"\nDrag APIs: GetCursorInfo="..tostring(type(GetCursorInfo)=="function")..
+        " GetSpellLink="..tostring(type(GetSpellLink)=="function"))
+    table.insert(lines,"Drag diagnostics (latest 20):")
+    table.insert(lines,table.getn(dragLog)>0 and table.concat(dragLog,"\n") or "No drag/drop recorded in this session.")
     return table.concat(lines, "\n")
+end
+function EP.TraceDrag(message)
+    table.insert(dragLog,string.format("%.1f",GetTime and GetTime() or 0).." "..message)
+    if table.getn(dragLog)>20 then table.remove(dragLog,1) end
+    if statusWindow and statusWindow:IsShown() then statusWindow.edit:SetText(statusText()) end
 end
 
 function EP.ShowStatus()

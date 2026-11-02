@@ -4,7 +4,6 @@ local db, editor, iconPicker
 local windows,rows={},{}
 local deleteId=nil
 local listOffset=0
-local known, knownByName = {}, {}
 local BOOK = BOOKTYPE_SPELL or "spell"
 local refreshEditor, layoutPocket, refreshIconPicker
 local pickerId
@@ -46,12 +45,12 @@ local function spellIcon(parent, name, width)
     b:SetScript("OnEnter",function(frame)
         frame = frame or this
         GameTooltip:SetOwner(frame,"ANCHOR_RIGHT")
-        if type(frame.entry)=="table" then
+        if type(frame.entry)=="table" and frame.entry.kind=="item" then
             EP.ShowItemTooltip(GameTooltip,frame.entry)
             GameTooltip:AddLine(EP.L("Right-click: remove; drag: move entry"),.8,.8,.8)
             GameTooltip:Show(); return
         end
-        if not frame.spellName then
+        if not frame.entry then
             if frame.dropTarget then
                 GameTooltip:SetText(EP.L("Drop a spell or equipment here"))
                 GameTooltip:AddLine(EP.L("Shift-drag or drag border: move window"),0.8,0.8,0.8)
@@ -59,32 +58,17 @@ local function spellIcon(parent, name, width)
             end
             return
         end
-        local info = knownByName[frame.spellName]
-        if info then GameTooltip:SetSpell(info.slot,BOOK)
-        else GameTooltip:SetText(frame.spellName .. " — " .. EP.L("Spell not in spellbook.")) end
+        local info=EP.ResolveSpell(frame.entry)
+        if info and info.name then GameTooltip:SetSpell(info.slot,BOOK)
+        else GameTooltip:SetText(EP.SpellLabel(frame.entry)) end
+        if not info then GameTooltip:AddLine(EP.SpellUnavailable(frame.entry),1,.3,.3) end
         GameTooltip:AddLine(EP.L("Right-click: remove; drag: move entry"),0.8,0.8,0.8)
         GameTooltip:AddLine(EP.L("Shift-drag or drag border: move window"),0.8,0.8,0.8)
         GameTooltip:Show()
     end)
     return b
 end
-function EP.GetSpellSlot(name)
-    local info=knownByName[name]
-    return info and info.slot
-end
-local function scanSpells()
-    known, knownByName = {}, {}
-    for slot = 1, 2048 do
-        local name, rank = GetSpellName(slot,BOOK)
-        if not name then break end
-        local passive = IsSpellPassive and IsSpellPassive(slot,BOOK)
-        if not passive then
-            knownByName[name] = {name=name,rank=rank or "",slot=slot,icon=GetSpellTexture(slot,BOOK)}
-        end
-    end
-    for _, info in pairs(knownByName) do table.insert(known,info) end
-    table.sort(known,function(a,b) return a.name < b.name end)
-end
+local function scanSpells() EP.ScanSpells() end
 local function center(frame)
     local x,y=frame:GetCenter()
     if not x or not y then return nil end
@@ -93,12 +77,21 @@ local function center(frame)
 end
 local function actionFor(button, fallback)
     if not button then return nil end
-    if type(button.action)=="number" then return button.action end
     local name=button:GetName() or ""
-    if string.find(name,"^ActionButton%d+$") and ActionButton_GetPagedID then
+    if (string.find(name,"^ActionButton%d+$") or string.find(name,"^BonusActionButton%d+$")) and ActionButton_GetPagedID then
         return ActionButton_GetPagedID(button)
     end
+    if type(button.action)=="number" then return button.action end
+    local bars={{"MultiBarBottomLeftButton",60},{"MultiBarBottomRightButton",48},
+        {"MultiBarRightButton",24},{"MultiBarLeftButton",36}}
+    for _,bar in ipairs(bars) do
+        local _,_,index=string.find(name,"^"..bar[1].."(%d+)$")
+        if index then return bar[2]+tonumber(index) end
+    end
     return fallback
+end
+local function isRelative(p)
+    return p.positionMode=="RELATIVE_LEFT" or p.positionMode=="RELATIVE_TOP"
 end
 local function matches(button,id,slot)
     return button and button.IsVisible and button:IsVisible() and
@@ -107,15 +100,14 @@ end
 local function findAnchor(id,preferred)
     if matches(preferred,id,actionFor(preferred)) then return preferred end
     local w=windows[id]
-    if w and matches(w.anchor,id,actionFor(w.anchor,w.anchorSlot)) then return w.anchor end
-    local bars={{"ActionButton",0},{"MultiBarBottomLeftButton",60},{"MultiBarBottomRightButton",48},
+    if w and matches(w.anchor,id,actionFor(w.anchor)) then return w.anchor end
+    local bars={{"ActionButton",0},{"BonusActionButton",0},{"MultiBarBottomLeftButton",60},{"MultiBarBottomRightButton",48},
         {"MultiBarRightButton",24},{"MultiBarLeftButton",36}}
     for _,bar in ipairs(bars) do
         for index=1,12 do
             local b=getglobal(bar[1]..index)
             local slot=actionFor(b,bar[2]+index)
             if matches(b,id,slot) then
-                if w then w.anchorSlot=slot end
                 return b
             end
         end
@@ -135,21 +127,14 @@ local function rememberPosition(p,w)
 end
 local function positionPocket(p,w,preferred)
     w:ClearAllPoints()
-    if p.positionMode=="RELATIVE" then
+    if isRelative(p) then
         local anchor=findAnchor(p.id,preferred)
         w.anchor=anchor
         if anchor then
-            if not p.relative then
-                local x,y=center(anchor)
-                local px,py
-                if p.position then px,py=p.position.x,p.position.y else px,py=center(UIParent) end
-                if x and px then p.relative={x=px-x,y=py-y} end
-            end
-            if p.relative then
-                -- Offsets are stored in UIParent units, so bar scaling is harmless.
-                w:SetPoint("CENTER",anchor,"CENTER",p.relative.x,p.relative.y)
-                return
-            end
+            -- Attach edges directly: no saved screen-center offset or size arithmetic.
+            if p.positionMode=="RELATIVE_LEFT" then w:SetPoint("TOPRIGHT",anchor,"TOPLEFT",-8,0)
+            else w:SetPoint("BOTTOMLEFT",anchor,"TOPLEFT",0,8) end
+            return
         end
     end
     if p.position then w:SetPoint("CENTER",UIParent,"BOTTOMLEFT",p.position.x,p.position.y)
@@ -159,7 +144,7 @@ local function updateCooldowns()
     for _,w in pairs(windows) do
         if w:IsShown() then
             for _,b in ipairs(w.buttons) do
-                local info=knownByName[b.spellName]
+                local info=EP.ResolveSpell(b.entry)
                 if b.cooldown then
                     if info then
                         local start,duration,enabled=GetSpellCooldown(info.slot,BOOK)
@@ -175,14 +160,14 @@ layoutPocket=function(p,w)
     for index,b in ipairs(w.buttons) do
         b.entry=p.spells[index]
         b.spellName=type(b.entry)=="string" and b.entry or nil
-        local info=knownByName[b.spellName]
-        if type(b.entry)=="table" then
+        local info=EP.ResolveSpell(b.entry)
+        if type(b.entry)=="table" and b.entry.kind=="item" then
             b.icon:SetTexture(EP.ItemTexture(b.entry))
             local available=EP.FindItem(b.entry)
             local shade=available and 1 or .4
             b.icon:SetVertexColor(shade,shade,shade,1)
         else
-            b.icon:SetTexture(info and info.icon or (b.spellName and "Interface\\Icons\\INV_Misc_QuestionMark"))
+            b.icon:SetTexture((info and info.icon) or (type(b.entry)=="table" and b.entry.icon) or (b.entry and "Interface\\Icons\\INV_Misc_QuestionMark"))
             b.icon:SetVertexColor(1,1,1,1)
         end
         b:ClearAllPoints()
@@ -199,20 +184,13 @@ local function createPocket(p)
     windows[id]=w; w.buttons={}; w.pocketId=id
     w:SetMovable(true); w:RegisterForDrag("LeftButton")
     local function startMove()
-        if not canEdit() or p.positionMode=="FIXED" then return end
+        if not canEdit() or p.positionMode~="FREE" then return end
         w.moving=true; w:StartMoving()
     end
     local function stopMove()
         if not w.moving then return end
         w:StopMovingOrSizing(); w.moving=nil
         rememberPosition(p,w)
-        if p.positionMode=="RELATIVE" then
-            local anchor=findAnchor(id)
-            if anchor then
-                local x,y=center(anchor)
-                if x then p.relative={x=p.position.x-x,y=p.position.y-y} end
-            else p.relative=nil end
-        end
         positionPocket(p,w)
     end
     w:SetScript("OnDragStart",EP.SafeCallback(startMove))
@@ -247,10 +225,10 @@ local function createPocket(p)
                 if canEdit() and p.spells[slotIndex] then p.spells[slotIndex]=nil; EP.ContentsChanged(id) end
                 return
             end
-            if type(frame.entry)=="table" then EP.EquipEntry(frame.entry); EP.ContentsChanged(id); return end
-            local info=knownByName[frame.spellName]
+            if type(frame.entry)=="table" and frame.entry.kind=="item" then EP.EquipEntry(frame.entry); EP.ContentsChanged(id); return end
+            local info=EP.ResolveSpell(frame.entry)
             if not info then
-                if frame.spellName then say(EP.L("Spell not in spellbook.")) end
+                if frame.entry then say(EP.SpellUnavailable(frame.entry)) end
                 return
             end
             CastSpell(info.slot,BOOK)
@@ -318,8 +296,9 @@ function EP.DeletePocket(id)
     if editor then refreshEditor() end
 end
 function EP.SetPositionMode(id,mode)
+    if mode=="RELATIVE" then mode="RELATIVE_TOP" end
     local p=EP.GetPocket(id)
-    if not p or not canEdit() or (mode~="FREE" and mode~="FIXED" and mode~="RELATIVE") then return end
+    if not p or not canEdit() or (mode~="FREE" and mode~="FIXED" and mode~="RELATIVE_LEFT" and mode~="RELATIVE_TOP") then return end
     local w=windows[p.id]
     if w then rememberPosition(p,w) end
     if p.positionMode~=mode then p.relative=nil end
@@ -520,7 +499,7 @@ local function createEditor()
     label(details,"Pocket window",16,-168,"GameFontNormalLarge")
     label(details,"Position",16,-217)
     editor.position=EP.Dropdown(details,"EasyPocketPosition",350,142,-208,
-        {{"FREE","Free"},{"FIXED","Fixed"},{"RELATIVE","Relative to pocket"}},
+        {{"FREE","Free"},{"FIXED","Fixed"},{"RELATIVE_LEFT","Relative to pocket: left"},{"RELATIVE_TOP","Relative to pocket: above"}},
         function() local p=selectedPocket(); return p and p.positionMode end,
         function(value) saveName(); EP.SetPositionMode(EP.selectedId,value) end)
     label(details,"Design",16,-259)
@@ -599,7 +578,7 @@ events:SetScript("OnEvent",function(frame,eventName)
             EP.RefreshActionIcons()
             for id,w in pairs(windows) do
                 local p=EP.GetPocket(id)
-                if p and p.positionMode=="RELATIVE" and w:IsShown() and not w.moving then
+                if p and isRelative(p) and w:IsShown() and not w.moving then
                     rememberPosition(p,w); positionPocket(p,w)
                 end
             end

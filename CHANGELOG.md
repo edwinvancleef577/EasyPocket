@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1-octowow-alpha
+
+- Replace arbitrary relative offsets with explicit Left and Above edge anchors; migrate the old relative mode to Above.
+- Follow recognized standard, bonus, paged and custom action buttons, including moved pocket shortcuts. Relative windows are locked to their anchor; Free mode retains manual movement.
+- Continue scanning past missing spell names; use spellbook tab bounds when available.
+- Recognize native spell cursors independently of the pickup hook and preserve client-provided spell IDs for custom entries with missing labels.
+- Resolve saved IDs after spellbook reordering, using optional client APIs without adding a dependency.
+- Allow unnamed entries without IDs only within the unchanged current session, requiring reassignment after reload or spellbook changes.
+- Provide fallback spell labels and retain normal casting, cooldowns, tooltips, and mixed-entry dragging.
+- Show the last 20 drag/drop diagnostics in Debug, including rejected or unsupported drops that do not throw Lua errors.
+- Pass 75 mocked Vanilla behavior tests under Lua 5.0.3. The reported custom OctoWoW entries still need in-client verification.
+
 ## 0.6.0-octowow-alpha
 
 - Remove the extra icon hover overlay in the menu and on recognized pocket action-bar buttons; restore the bar’s original highlight when a slot is reused.

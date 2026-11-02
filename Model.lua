@@ -21,6 +21,15 @@ local function oldGrid(count)
 end
 function EP.NormalizeEntry(value)
     if type(value)=="string" and value~="" then return value end
+    if type(value)=="table" and value.kind=="spell" then
+        local id=tonumber(value.spellId)
+        if id and (id~=id or id<1 or id>2147483647 or id~=math.floor(id)) then id=nil end
+        if not id and type(value.icon)~="string" then return nil end
+        local entry={kind="spell",spellId=id,name=type(value.name)=="string" and value.name or nil,
+            icon=type(value.icon)=="string" and value.icon or nil}
+        if EP.CopySpellBinding then EP.CopySpellBinding(value,entry) end
+        return entry
+    end
     if type(value)~="table" or value.kind~="item" then return nil end
     local id=tonumber(value.itemId)
     if not id or id~=id or id<1 or id>2147483647 or id~=math.floor(id) then return nil end
@@ -30,9 +39,10 @@ end
 local function normalizePocket(p,old)
     if type(p.name)~="string" or p.name=="" then p.name=EP.L("My spells") end
     if type(p.iconTexture)~="string" or p.iconTexture=="" then p.iconTexture=nil end
-    if p.positionMode~="FIXED" and p.positionMode~="RELATIVE" then p.positionMode="FREE" end
+    if p.positionMode=="RELATIVE" then p.positionMode="RELATIVE_TOP" end
+    if p.positionMode~="FIXED" and p.positionMode~="RELATIVE_LEFT" and p.positionMode~="RELATIVE_TOP" then p.positionMode="FREE" end
     if not validPosition(p.position) then p.position=nil end
-    if not validPosition(p.relative) then p.relative=nil end
+    p.relative=nil -- Legacy arbitrary offsets are replaced by edge anchors.
     if p.design~="CLASSIC" and p.design~="PFUI" then p.design="CURRENT" end
     p.direction=nil
     local spells=type(p.spells)=="table" and p.spells or {}
@@ -63,7 +73,7 @@ local function normalizePocket(p,old)
 end
 function EP.Normalize(saved)
     local db=type(saved)=="table" and saved or {}
-    local old=db.version~=5 and db.version~=6
+    local old=db.version~=5 and db.version~=6 and db.version~=7
     if type(db.pockets)~="table" then db={pockets={db},nextId=2,legacyId=1}; db.pockets[1].id=1; old=true end
     local nextId=tonumber(db.nextId) or 1
     if nextId~=nextId or nextId<1 or nextId>1000000 then nextId=1 end
@@ -81,7 +91,7 @@ function EP.Normalize(saved)
             table.insert(pockets,normalizePocket(p,old))
         end
     end
-    db.pockets=pockets; db.nextId=nextId; db.version=6
+    db.pockets=pockets; db.nextId=nextId; db.version=7
     db.language=db.language or "auto"
     return db
 end

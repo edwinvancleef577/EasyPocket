@@ -52,11 +52,18 @@ function EP.ShowItemTooltip(tooltip,entry)
     if not kind then tooltip:AddLine(EP.L("Item not carried."),1,.3,.3) end
 end
 function EP.PickupEntry(entry)
-    if type(entry)=="string" then
+    if type(entry)=="string" or (type(entry)=="table" and entry.kind=="spell") then
         local slot=EP.GetSpellSlot(entry)
         if not slot or not PickupSpell then return false end
         PickupSpell(slot,BOOKTYPE_SPELL or "spell")
-        return EP.DraggedSpell()==entry
+        local current=EP.DraggedEntry()
+        if type(entry)=="string" then
+            return current==entry or (type(current)=="table" and current.kind=="spell" and
+                EP.SpellLabel(current)==entry and EP.GetSpellSlot(current)==slot)
+        end
+        return type(current)=="table" and current.kind=="spell" and
+            ((entry.spellId and current.spellId==entry.spellId) or
+            (not entry.spellId and EP.GetSpellSlot(current)==slot))
     end
     local kind,a,b=EP.FindItem(entry,true)
     if kind=="bag" and PickupContainerItem then PickupContainerItem(a,b)
